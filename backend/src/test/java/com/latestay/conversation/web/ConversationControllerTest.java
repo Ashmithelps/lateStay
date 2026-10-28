@@ -5,10 +5,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.latestay.config.NegotiationConfig;
+import com.latestay.config.SecurityConfig;
 import com.latestay.conversation.ConversationService;
-import com.latestay.conversation.ConversationStore;
 import com.latestay.conversation.HotelFacts;
-import com.latestay.conversation.HotelFactsProvider;
+import com.latestay.conversation.InMemoryConversationRepository;
 import com.latestay.conversation.intent.AmountExtractor;
 import com.latestay.conversation.intent.IntentParser;
 import com.latestay.conversation.llm.LlmClient;
@@ -29,13 +29,11 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(ConversationController.class)
-@ActiveProfiles("local")
-@Import({NegotiationConfig.class, ConversationStore.class, ConversationService.class, IntentParser.class,
+@Import({SecurityConfig.class, NegotiationConfig.class, ConversationService.class, IntentParser.class,
         ReplyPhraser.class, ReplyValidator.class, ReplyTemplates.class, ConversationControllerTest.Beans.class})
 class ConversationControllerTest {
 
@@ -53,8 +51,8 @@ class ConversationControllerTest {
         }
 
         @Bean
-        HotelFactsProvider hotelFactsProvider() {
-            return session -> new HotelFacts("Test Lodge", List.of("Room heater"), List.of("Photo ID"));
+        InMemoryConversationRepository conversationRepository() {
+            return new InMemoryConversationRepository();
         }
     }
 
@@ -65,7 +63,7 @@ class ConversationControllerTest {
     private NegotiationEngine engine;
 
     @Autowired
-    private ConversationStore store;
+    private InMemoryConversationRepository repository;
 
     @Test
     void repliesWithEnginePriceAndStatus() throws Exception {
@@ -103,7 +101,7 @@ class ConversationControllerTest {
 
     private String open() {
         NegotiationSession session = engine.open(PricingPolicy.of(1400, 700, SlotType.LATE_NIGHT), LocalTime.of(23, 30));
-        store.save(session);
+        repository.put(session, new HotelFacts("Test Lodge", List.of("Room heater"), List.of("Photo ID")));
         return session.id();
     }
 

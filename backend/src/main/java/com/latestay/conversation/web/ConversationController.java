@@ -3,16 +3,14 @@ package com.latestay.conversation.web;
 import com.latestay.conversation.ConversationReply;
 import com.latestay.conversation.ConversationService;
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Traveller chat for a negotiation. Local profile only until hotels are stored. */
+/** Traveller chat for a negotiation. */
 @RestController
-@Profile("local")
 @RequestMapping("/api/negotiations")
 class ConversationController {
 
@@ -20,6 +18,12 @@ class ConversationController {
 
     ConversationController(ConversationService conversations) {
         this.conversations = conversations;
+    }
+
+    /** The Accept button: agrees at the current offer through the engine, without parsing any text. */
+    @PostMapping("/{id}/accept")
+    ConversationReply accept(@PathVariable String id) {
+        return conversations.accept(id);
     }
 
     @PostMapping("/{id}/messages")

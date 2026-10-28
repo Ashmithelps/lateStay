@@ -66,8 +66,20 @@ public final class NegotiationSession {
         return Optional.ofNullable(agreedPrice);
     }
 
+    /** History of turns handled by this instance; empty after {@link NegotiationEngine#restore}. */
     public List<Turn> history() {
         return Collections.unmodifiableList(history);
+    }
+
+    public synchronized SessionSnapshot snapshot() {
+        return new SessionSnapshot(id, policy, arrival, createdAt, expiresAt, currentOffer, round, status, agreedPrice);
+    }
+
+    void restoreState(long currentOffer, int round, SessionStatus status, Long agreedPrice) {
+        this.currentOffer = currentOffer;
+        this.round = round;
+        this.status = status;
+        this.agreedPrice = agreedPrice;
     }
 
     void setCurrentOffer(long currentOffer) {

@@ -42,3 +42,7 @@ next-env.d.ts
 
 # keep env examples
 !.env.example
+
+# Playwright
+/test-results/
+/playwright-report/

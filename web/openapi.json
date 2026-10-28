@@ -1,0 +1,1197 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "LateStay public API",
+    "version" : "v1"
+  },
+  "paths" : {
+    "/api/bookings" : {
+      "post" : {
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingCreated"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
+    "/api/bookings/{id}" : {
+      "get" : {
+        "operationId" : "booking",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
+    "/api/bookings/{id}/cancel" : {
+      "post" : {
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
+    "/api/bookings/{id}/verify" : {
+      "post" : {
+        "operationId" : "verify",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VerifyPaymentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
+    "/api/health" : {
+      "get" : {
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "health-controller" ]
+      }
+    },
+    "/api/hotels/{slug}" : {
+      "get" : {
+        "operationId" : "hotel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "stayRequestId",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HotelDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "hotel-controller" ]
+      }
+    },
+    "/api/negotiations" : {
+      "post" : {
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NegotiationCreated"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "negotiation-controller" ]
+      }
+    },
+    "/api/negotiations/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NegotiationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "negotiation-controller" ]
+      }
+    },
+    "/api/negotiations/{id}/accept" : {
+      "post" : {
+        "operationId" : "accept",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConversationReply"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "conversation-controller" ]
+      }
+    },
+    "/api/negotiations/{id}/messages" : {
+      "post" : {
+        "operationId" : "message",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConversationReply"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "conversation-controller" ]
+      }
+    },
+    "/api/negotiations/{sessionId}/booking-preview" : {
+      "get" : {
+        "operationId" : "preview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "sessionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingPreview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
+    "/api/search" : {
+      "get" : {
+        "operationId" : "search",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "lat",
+          "required" : true,
+          "schema" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lng",
+          "required" : true,
+          "schema" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }, {
+          "in" : "query",
+          "name" : "arrive",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "in" : "query",
+          "name" : "leave",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "in" : "query",
+          "name" : "guests",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "in" : "query",
+          "name" : "filters",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "search-controller" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "BookingCreated" : {
+        "required" : [ "bookingId", "checkout", "payBy", "status" ],
+        "type" : "object",
+        "properties" : {
+          "bookingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "checkout" : {
+            "$ref" : "#/components/schemas/Checkout"
+          },
+          "payBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_PAYMENT", "DEPOSIT_PAID", "HOTEL_CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "HOTEL_DECLINED", "HOTEL_TIMEOUT", "REFUNDED", "CANCELLED", "NO_SHOW" ]
+          }
+        }
+      },
+      "BookingPreview" : {
+        "required" : [ "agreedPrice", "arriveAt", "arriveBy", "booking", "depositAmount", "guests", "hotel", "leaveAt", "payAtDesk", "roomType", "sessionId" ],
+        "type" : "object",
+        "properties" : {
+          "agreedPrice" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "arriveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "arriveBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "booking" : {
+            "$ref" : "#/components/schemas/ExistingBooking"
+          },
+          "depositAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "guests" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "hotel" : {
+            "$ref" : "#/components/schemas/HotelInfo"
+          },
+          "leaveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "payAtDesk" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "roomType" : {
+            "type" : "string"
+          },
+          "sessionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "BookingView" : {
+        "required" : [ "agreedPrice", "arriveAt", "arriveBy", "code", "confirmBy", "depositAmount", "guestName", "guests", "hotel", "id", "leaveAt", "nextBest", "payAtDesk", "payBy", "phone", "refund", "refundedFrom", "roomType", "sessionId", "status" ],
+        "type" : "object",
+        "properties" : {
+          "agreedPrice" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "arriveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "arriveBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "code" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "confirmBy" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "depositAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "guestName" : {
+            "type" : "string"
+          },
+          "guests" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "hotel" : {
+            "$ref" : "#/components/schemas/HotelInfo"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "leaveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "nextBest" : {
+            "$ref" : "#/components/schemas/NextBest"
+          },
+          "payAtDesk" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "payBy" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "refund" : {
+            "$ref" : "#/components/schemas/Refund"
+          },
+          "refundedFrom" : {
+            "type" : "string",
+            "nullable" : true,
+            "enum" : [ "PENDING_PAYMENT", "DEPOSIT_PAID", "HOTEL_CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "HOTEL_DECLINED", "HOTEL_TIMEOUT", "REFUNDED", "CANCELLED", "NO_SHOW" ]
+          },
+          "roomType" : {
+            "type" : "string"
+          },
+          "sessionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_PAYMENT", "DEPOSIT_PAID", "HOTEL_CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "HOTEL_DECLINED", "HOTEL_TIMEOUT", "REFUNDED", "CANCELLED", "NO_SHOW" ]
+          }
+        }
+      },
+      "Checkout" : {
+        "required" : [ "amount", "amountPaise", "currency", "keyId", "mode", "name", "orderId", "phone", "timeoutSeconds" ],
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "amountPaise" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "keyId" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "RAZORPAY", "FAKE" ]
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "timeoutSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "nullable" : true
+      },
+      "ConversationReply" : {
+        "required" : [ "intent", "llmUsage", "offer", "reasonCode", "reply", "replySource", "status" ],
+        "type" : "object",
+        "properties" : {
+          "intent" : {
+            "type" : "string",
+            "enum" : [ "COUNTER", "ACCEPT", "ASK_BEST", "QUESTION", "OTHER" ]
+          },
+          "llmUsage" : {
+            "$ref" : "#/components/schemas/LlmUsage"
+          },
+          "offer" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "reasonCode" : {
+            "type" : "string",
+            "nullable" : true,
+            "enum" : [ "OPENING", "LATE_HOUR", "COUNTER_TOO_LOW", "MEETING_HALFWAY", "CLOSE_ENOUGH", "FLOOR_REACHED", "ALREADY_FINAL", "ACCEPTED", "UNCLEAR" ]
+          },
+          "reply" : {
+            "type" : "string"
+          },
+          "replySource" : {
+            "type" : "string",
+            "enum" : [ "LLM", "TEMPLATE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "AGREED", "FINAL_OFFER", "NO_DEAL", "EXPIRED" ]
+          }
+        }
+      },
+      "CreateBookingRequest" : {
+        "required" : [ "guestName", "idConsent", "phone", "sessionId" ],
+        "type" : "object",
+        "properties" : {
+          "guestName" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "idConsent" : {
+            "type" : "boolean"
+          },
+          "phone" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "sessionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "CreateRequest" : {
+        "required" : [ "roomTypeId", "stayRequestId" ],
+        "type" : "object",
+        "properties" : {
+          "roomTypeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "stayRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "ExistingBooking" : {
+        "required" : [ "id", "status" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_PAYMENT", "DEPOSIT_PAID", "HOTEL_CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "HOTEL_DECLINED", "HOTEL_TIMEOUT", "REFUNDED", "CANCELLED", "NO_SHOW" ]
+          }
+        },
+        "nullable" : true
+      },
+      "HealthResponse" : {
+        "required" : [ "postgis", "status" ],
+        "type" : "object",
+        "properties" : {
+          "postgis" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HotelDetail" : {
+        "required" : [ "address", "amenities", "id", "lat", "lng", "name", "photos", "policies", "rating", "slug", "stay", "town" ],
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "amenities" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lat" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "lng" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "photos" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "policies" : {
+            "$ref" : "#/components/schemas/Policies"
+          },
+          "rating" : {
+            "type" : "number",
+            "nullable" : true
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "stay" : {
+            "$ref" : "#/components/schemas/Stay"
+          },
+          "town" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HotelInfo" : {
+        "required" : [ "address", "id", "lat", "lng", "name", "phone", "photo", "slug", "town" ],
+        "type" : "object",
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lat" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "lng" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "photo" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "town" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HotelResult" : {
+        "required" : [ "amenities", "distanceKm", "fromPrice", "id", "lat", "lng", "name", "photos", "rating", "roomTypes", "roomsFree", "slug", "town" ],
+        "type" : "object",
+        "properties" : {
+          "amenities" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "distanceKm" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "fromPrice" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lat" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "lng" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "photos" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "rating" : {
+            "type" : "number",
+            "nullable" : true
+          },
+          "roomTypes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoomOption"
+            }
+          },
+          "roomsFree" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "town" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HotelSummary" : {
+        "required" : [ "id", "name", "photo", "slug", "town" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "photo" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "town" : {
+            "type" : "string"
+          }
+        }
+      },
+      "LlmUsage" : {
+        "required" : [ "calls", "inputTokens", "outputTokens" ],
+        "type" : "object",
+        "properties" : {
+          "calls" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "inputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "outputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "Message" : {
+        "required" : [ "role", "text" ],
+        "type" : "object",
+        "properties" : {
+          "role" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MessageRequest" : {
+        "required" : [ "text" ],
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "maxLength" : 4000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "NegotiationCreated" : {
+        "required" : [ "currentOffer", "expiresAt", "hotel", "id", "maxRounds", "messages", "roomType", "round", "status" ],
+        "type" : "object",
+        "properties" : {
+          "currentOffer" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "hotel" : {
+            "$ref" : "#/components/schemas/Ref"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maxRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Message"
+            }
+          },
+          "roomType" : {
+            "$ref" : "#/components/schemas/Ref"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "AGREED", "FINAL_OFFER", "NO_DEAL", "EXPIRED" ]
+          }
+        }
+      },
+      "NegotiationView" : {
+        "required" : [ "agreedPrice", "currentOffer", "expiresAt", "hotel", "id", "maxRounds", "messages", "roomType", "round", "status", "stayRequestId" ],
+        "type" : "object",
+        "properties" : {
+          "agreedPrice" : {
+            "type" : "integer",
+            "format" : "int64",
+            "nullable" : true
+          },
+          "currentOffer" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "hotel" : {
+            "$ref" : "#/components/schemas/HotelSummary"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maxRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Message"
+            }
+          },
+          "roomType" : {
+            "$ref" : "#/components/schemas/RoomSummary"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "AGREED", "FINAL_OFFER", "NO_DEAL", "EXPIRED" ]
+          },
+          "stayRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "NextBest" : {
+        "required" : [ "distanceKm", "fromPrice", "name", "photo", "slug", "stayRequestId", "town" ],
+        "type" : "object",
+        "properties" : {
+          "distanceKm" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "fromPrice" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "photo" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "stayRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "town" : {
+            "type" : "string"
+          }
+        },
+        "nullable" : true
+      },
+      "Policies" : {
+        "required" : [ "checkInNotes", "coupleFriendly", "localIdOk" ],
+        "type" : "object",
+        "properties" : {
+          "checkInNotes" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "coupleFriendly" : {
+            "type" : "boolean"
+          },
+          "localIdOk" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "Ref" : {
+        "required" : [ "id", "name" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Refund" : {
+        "required" : [ "amount", "status" ],
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "nullable" : true
+      },
+      "RoomOption" : {
+        "required" : [ "fromPrice", "id", "maxGuests", "name" ],
+        "type" : "object",
+        "properties" : {
+          "fromPrice" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maxGuests" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RoomSummary" : {
+        "required" : [ "id", "name" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SearchResponse" : {
+        "required" : [ "nightOf", "results", "slotType", "stayRequestId" ],
+        "type" : "object",
+        "properties" : {
+          "nightOf" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "results" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HotelResult"
+            }
+          },
+          "slotType" : {
+            "type" : "string",
+            "enum" : [ "LATE_NIGHT", "EARLY_MORNING" ]
+          },
+          "stayRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "Stay" : {
+        "required" : [ "arrive", "arriveFrom", "arriveUntil", "distanceKm", "fromPrice", "guests", "leave", "leaveBy", "nightOf", "roomTypes", "roomsFree", "slotType", "stayRequestId" ],
+        "type" : "object",
+        "properties" : {
+          "arrive" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "arriveFrom" : {
+            "type" : "string"
+          },
+          "arriveUntil" : {
+            "type" : "string"
+          },
+          "distanceKm" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "fromPrice" : {
+            "type" : "integer",
+            "format" : "int64",
+            "nullable" : true
+          },
+          "guests" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "leave" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "leaveBy" : {
+            "type" : "string"
+          },
+          "nightOf" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "roomTypes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoomOption"
+            }
+          },
+          "roomsFree" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "slotType" : {
+            "type" : "string",
+            "enum" : [ "LATE_NIGHT", "EARLY_MORNING" ]
+          },
+          "stayRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "nullable" : true
+      },
+      "VerifyPaymentRequest" : {
+        "required" : [ "orderId", "paymentId", "signature" ],
+        "type" : "object",
+        "properties" : {
+          "orderId" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "paymentId" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "signature" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}

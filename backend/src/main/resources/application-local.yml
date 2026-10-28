@@ -6,6 +6,11 @@ spring:
   jpa:
     show-sql: false
 
+# Without Razorpay test keys, payments go through FakeRazorpayGateway and /api/dev/payments.
+latestay:
+  razorpay:
+    allow-fake: true
+
 logging:
   level:
     com.latestay: DEBUG

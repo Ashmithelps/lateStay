@@ -16,6 +16,13 @@ spring:
 server:
   port: ${PORT:8080}
 
+# Public API contract for the web app (types are generated from it). Admin and dev endpoints are left out.
+springdoc:
+  api-docs:
+    version: openapi_3_0
+  paths-to-match: /api/**
+  paths-to-exclude: /api/admin/**, /api/dev/**
+
 management:
   endpoints:
     web:
@@ -24,6 +31,33 @@ management:
 
 latestay:
   web-origin: ${WEB_ORIGIN:http://localhost:3000}
+  admin:
+    username: ${ADMIN_USERNAME:}
+    password: ${ADMIN_PASSWORD:}
+  booking:
+    deposit-cap: ${BOOKING_DEPOSIT_CAP:200}
+    commission: ${BOOKING_COMMISSION:100}
+    payment-window: 10m
+    confirm-window: 5m
+    arrival-grace: 60m
+    no-show-after: 60m
+  jobs:
+    enabled: ${JOBS_ENABLED:true}
+    interval: 15s
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+    allow-fake: false
+  whatsapp:
+    phone-number-id: ${WA_PHONE_NUMBER_ID:}
+    access-token: ${WA_ACCESS_TOKEN:}
+    verify-token: ${WA_VERIFY_TOKEN:}
+    app-secret: ${WA_APP_SECRET:}
+    graph-version: ${WA_GRAPH_VERSION:v23.0}
+    language: en
+    send-interval: 5s
+    ping-cron: "0 0 21 * * *"
   llm:
     provider: ${LLM_PROVIDER:none}
     model: ${LLM_MODEL:}

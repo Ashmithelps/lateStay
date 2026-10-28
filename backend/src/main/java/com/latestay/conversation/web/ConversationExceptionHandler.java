@@ -2,14 +2,12 @@ package com.latestay.conversation.web;
 
 import com.latestay.conversation.UnknownConversationException;
 import com.latestay.negotiation.SessionClosedException;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = ConversationController.class)
-@Profile("local")
+@RestControllerAdvice
 class ConversationExceptionHandler {
 
     @ExceptionHandler(UnknownConversationException.class)

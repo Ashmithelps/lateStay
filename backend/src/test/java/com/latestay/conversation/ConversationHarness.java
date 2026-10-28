@@ -26,19 +26,19 @@ final class ConversationHarness {
 
     final AmountExtractor amounts = new AmountExtractor();
     final ReplyValidator validator = new ReplyValidator(amounts);
-    final ConversationStore store = new ConversationStore();
+    final InMemoryConversationRepository repository = new InMemoryConversationRepository();
     final NegotiationEngine engine = new NegotiationEngine(
             Clock.fixed(Instant.parse("2026-10-28T17:30:00Z"), ZoneId.of("Asia/Kolkata")));
     final ConversationService service;
 
     ConversationHarness(LlmClient llm) {
-        service = new ConversationService(store, engine, new IntentParser(llm, amounts), new ReplyPhraser(llm),
-                validator, new ReplyTemplates(validator), session -> FACTS);
+        service = new ConversationService(repository, engine, new IntentParser(llm, amounts), new ReplyPhraser(llm),
+                validator, new ReplyTemplates(validator));
     }
 
     NegotiationSession open() {
         NegotiationSession session = engine.open(PricingPolicy.of(LIST, FLOOR, SlotType.LATE_NIGHT), LocalTime.of(23, 30));
-        store.save(session);
+        repository.put(session, FACTS);
         return session;
     }
 }

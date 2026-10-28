@@ -67,6 +67,37 @@ class ConversationServiceTest {
     }
 
     @Test
+    void savesTravellerAndBotTurnsWithIntentDecisionAndValidatorResult() {
+        FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "hinglish"),
+                replies("Fine, ₹500.", "Itna kam nahi, ₹900 mein ho jayega."));
+        ConversationHarness h = new ConversationHarness(llm);
+        NegotiationSession session = h.open();
+
+        h.service.handle(session.id(), "500 mein do");
+
+        var turns = h.repository.turns(session.id());
+        assertThat(turns).hasSize(2);
+        assertThat(turns.get(0).intent().amount()).isEqualTo(500);
+        assertThat(turns.get(0).decision()).isNull();
+        assertThat(turns.get(1).decision().amount()).isEqualTo(900);
+        assertThat(turns.get(1).validatorResult()).isEqualTo(ConversationService.LLM_OK);
+        assertThat(turns.get(1).latencyMs()).isNotNull();
+    }
+
+    @Test
+    void templateTurnRecordsWhyTheDraftsWereRejected() {
+        FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "english"),
+                replies("Fine, ₹500.", "Sorry, that is too low."));
+        ConversationHarness h = new ConversationHarness(llm);
+        NegotiationSession session = h.open();
+
+        h.service.handle(session.id(), "500?");
+
+        assertThat(h.repository.turns(session.id()).get(1).validatorResult())
+                .isEqualTo("TEMPLATE: approved amount missing; approved amount missing");
+    }
+
+    @Test
     void wrongPriceTwiceFallsBackToTemplate() {
         FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "english"),
                 replies("Fine, ₹500.", "Our floor is ₹700 but for you ₹900."));
@@ -174,6 +205,22 @@ class ConversationServiceTest {
         String system = llm.replyRequests().getLast().system();
         // "offer 100" is the message's single amount, so it counts as a counter of 100: the engine concedes to 900.
         assertThat(system).contains("Test Lodge", "Room heater", "₹900").doesNotContain("700", "1400", "100");
+    }
+
+    @Test
+    void acceptIsAnExplicitEngineAcceptWithoutIntentParsing() {
+        FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "hinglish"), FakeLlmClient.timeout());
+        ConversationHarness h = new ConversationHarness(llm);
+        NegotiationSession session = h.open();
+        h.service.handle(session.id(), "500 mein do bhai");
+
+        ConversationReply reply = h.service.accept(session.id());
+
+        assertThat(reply.status()).isEqualTo(SessionStatus.AGREED);
+        assertThat(reply.offer()).isEqualTo(900);
+        assertThat(reply.reply()).isEqualTo("Done, ₹900 pakka. Room taiyaar karwa dete hain.");
+        assertThat(llm.intentRequests()).hasSize(1);
+        assertThat(h.repository.turns(session.id()).get(2).text()).isEqualTo("Accept ₹900");
     }
 
     @Test

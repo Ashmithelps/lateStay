@@ -4,8 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.latestay.config.NegotiationConfig;
-import com.latestay.conversation.ConversationStore;
+import com.latestay.config.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,7 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /** Without the 'local' profile the dev API does not exist. */
 @WebMvcTest(DevNegotiationController.class)
-@Import({NegotiationConfig.class, ConversationStore.class})
+@Import(SecurityConfig.class)
 class DevNegotiationProfileTest {
 
     @Autowired

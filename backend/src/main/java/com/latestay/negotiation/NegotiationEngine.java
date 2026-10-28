@@ -64,6 +64,25 @@ public final class NegotiationEngine {
         return session;
     }
 
+    /** Rebuilds a session from stored state. */
+    public NegotiationSession restore(SessionSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        NegotiationSession session = new NegotiationSession(snapshot.id(), snapshot.policy(), snapshot.arrival(),
+                snapshot.createdAt(), snapshot.expiresAt());
+        session.restoreState(snapshot.currentOffer(), snapshot.round(), snapshot.status(), snapshot.agreedPrice());
+        return session;
+    }
+
+    /** The price a session would open at, without opening one. Used to show "from" prices in search. */
+    public long openingOffer(PricingPolicy policy, LocalTime arrival) {
+        Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(arrival, "arrival");
+        if (!policy.slotType().accepts(arrival)) {
+            throw new IllegalArgumentException("Arrival " + arrival + " is outside the " + policy.slotType() + " window");
+        }
+        return OpeningPrice.amount(policy, arrival);
+    }
+
     /**
      * Applies one traveller turn.
      *

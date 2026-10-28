@@ -1,12 +1,15 @@
 package com.latestay.conversation;
 
-import com.latestay.conversation.ConversationStore.Conversation;
+import com.latestay.conversation.ConversationReply.ReplySource;
+import com.latestay.conversation.ConversationRepository.Conversation;
+import com.latestay.conversation.ConversationRepository.NewTurn;
 import com.latestay.conversation.intent.Intent;
 import com.latestay.conversation.intent.IntentParser;
 import com.latestay.conversation.intent.IntentType;
-import com.latestay.conversation.ConversationReply.ReplySource;
+import com.latestay.conversation.intent.Register;
 import com.latestay.conversation.llm.LlmUnavailableException;
 import com.latestay.conversation.llm.LlmUsageMeter;
+import com.latestay.conversation.reply.Money;
 import com.latestay.conversation.reply.ReplyContext;
 import com.latestay.conversation.reply.ReplyPhraser;
 import com.latestay.conversation.reply.ReplyTemplates;
@@ -16,82 +19,143 @@ import com.latestay.negotiation.EngineDecision;
 import com.latestay.negotiation.NegotiationEngine;
 import com.latestay.negotiation.NegotiationSession;
 import com.latestay.negotiation.ReasonCode;
+import com.latestay.negotiation.SessionClosedException;
 import com.latestay.negotiation.TravellerEvent;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * One traveller message in, one front-desk reply out. Prices come only from {@link NegotiationEngine}; the LLM
  * labels the message and words the reply, and every reply passes {@link ReplyValidator} or is replaced by a
- * template. Local profile only until hotels are stored.
+ * template. Both turns are persisted with the session's new state in one transaction.
  */
 @Service
-@Profile("local")
 public class ConversationService {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
 
     static final int RECENT_MESSAGES = 4;
     static final int PHRASING_ATTEMPTS = 2;
+    public static final String LLM_OK = "LLM_OK";
 
-    private final ConversationStore store;
+    private final ConversationRepository conversations;
     private final NegotiationEngine engine;
     private final IntentParser intents;
     private final ReplyPhraser phraser;
     private final ReplyValidator validator;
     private final ReplyTemplates templates;
-    private final HotelFactsProvider hotelFacts;
 
-    public ConversationService(ConversationStore store, NegotiationEngine engine, IntentParser intents,
-            ReplyPhraser phraser, ReplyValidator validator, ReplyTemplates templates, HotelFactsProvider hotelFacts) {
-        this.store = store;
+    public ConversationService(ConversationRepository conversations, NegotiationEngine engine, IntentParser intents,
+            ReplyPhraser phraser, ReplyValidator validator, ReplyTemplates templates) {
+        this.conversations = conversations;
         this.engine = engine;
         this.intents = intents;
         this.phraser = phraser;
         this.validator = validator;
         this.templates = templates;
-        this.hotelFacts = hotelFacts;
     }
 
+    /** The bot's first message for a freshly opened session. */
+    public record OpeningReply(String text, ReplySource source, String validatorResult, int latencyMs) {
+    }
+
+    public OpeningReply openingReply(NegotiationSession session, HotelFacts facts) {
+        long started = System.nanoTime();
+        EngineDecision opening = session.history().getFirst().decision();
+        Composed reply = compose(new ReplyContext(opening, facts, Register.ENGLISH, List.of(), null),
+                new LlmUsageMeter());
+        return new OpeningReply(reply.text(), reply.source(), reply.validation(), elapsedMs(started));
+    }
+
+    @Transactional(noRollbackFor = SessionClosedException.class)
     public ConversationReply handle(String conversationId, String text) {
-        Conversation conversation = store.find(conversationId)
+        long started = System.nanoTime();
+        Conversation conversation = conversations.lockAndLoad(conversationId)
                 .orElseThrow(() -> new UnknownConversationException(conversationId));
-
-        synchronized (conversation) {
-            NegotiationSession session = conversation.session();
+        NegotiationSession session = conversation.session();
+        try {
             engine.ensureOpen(session);
-
-            String message = PromptText.truncate(text);
-            LlmUsageMeter meter = new LlmUsageMeter();
-            Intent intent = intents.parse(message, meter);
-
-            EngineDecision decision;
-            ReasonCode reasonCode;
-            if (intent.type() == IntentType.QUESTION) {
-                decision = new EngineDecision(EngineAction.HOLD, session.currentOffer(), ReasonCode.UNCLEAR);
-                reasonCode = null;
-            } else {
-                decision = engine.respond(session, toEvent(intent));
-                reasonCode = decision.reasonCode();
-            }
-
-            List<ChatMessage> recent = new ArrayList<>(conversation.transcript());
-            recent.add(ChatMessage.traveller(message));
-            recent = recent.subList(Math.max(0, recent.size() - RECENT_MESSAGES), recent.size());
-
-            ReplyContext context = new ReplyContext(decision, hotelFacts.factsFor(session), intent.register(),
-                    recent, intent.type() == IntentType.QUESTION ? intent.question() : null);
-            Composed reply = compose(context, meter);
-
-            conversation.append(ChatMessage.traveller(message));
-            conversation.append(ChatMessage.hotel(reply.text()));
-            return new ConversationReply(reply.text(), session.currentOffer(), session.status(), reasonCode,
-                    intent.type(), reply.source(), meter.usage());
+        } catch (SessionClosedException e) {
+            conversations.save(session, List.of()); // keep an EXPIRED status that was just set
+            throw e;
         }
+
+        String message = PromptText.truncate(text);
+        LlmUsageMeter meter = new LlmUsageMeter();
+        Intent intent = intents.parse(message, meter);
+
+        EngineDecision decision;
+        ReasonCode reasonCode;
+        boolean question = intent.type() == IntentType.QUESTION;
+        if (question) {
+            decision = new EngineDecision(EngineAction.HOLD, session.currentOffer(), ReasonCode.UNCLEAR);
+            reasonCode = null;
+        } else {
+            decision = engine.respond(session, toEvent(intent));
+            reasonCode = decision.reasonCode();
+        }
+
+        List<ChatMessage> recent = new ArrayList<>(conversation.transcript());
+        recent.add(ChatMessage.traveller(message));
+        recent = recent.subList(Math.max(0, recent.size() - RECENT_MESSAGES), recent.size());
+
+        ReplyContext context = new ReplyContext(decision, conversation.facts(), intent.register(), recent,
+                question ? intent.question() : null);
+        Composed reply = compose(context, meter);
+
+        conversations.save(session, List.of(
+                NewTurn.traveller(message, intent),
+                NewTurn.bot(reply.text(), question ? null : decision, reply.validation(), elapsedMs(started))));
+        return new ConversationReply(reply.text(), session.currentOffer(), session.status(), reasonCode,
+                intent.type(), reply.source(), meter.usage());
+    }
+
+    /**
+     * The traveller pressed Accept: an explicit engine {@code Accept}, no intent parsing. Agrees at the current
+     * offer (or replies with the template if the session can't agree).
+     */
+    @Transactional(noRollbackFor = SessionClosedException.class)
+    public ConversationReply accept(String conversationId) {
+        long started = System.nanoTime();
+        Conversation conversation = conversations.lockAndLoad(conversationId)
+                .orElseThrow(() -> new UnknownConversationException(conversationId));
+        NegotiationSession session = conversation.session();
+        try {
+            engine.ensureOpen(session);
+        } catch (SessionClosedException e) {
+            conversations.save(session, List.of());
+            throw e;
+        }
+
+        String message = "Accept " + Money.format(session.currentOffer());
+        Intent intent = new Intent(IntentType.ACCEPT, null, null, lastRegister(conversation));
+        EngineDecision decision = engine.respond(session, new TravellerEvent.Accept());
+
+        List<ChatMessage> recent = new ArrayList<>(conversation.transcript());
+        recent.add(ChatMessage.traveller(message));
+        recent = recent.subList(Math.max(0, recent.size() - RECENT_MESSAGES), recent.size());
+        LlmUsageMeter meter = new LlmUsageMeter();
+        Composed reply = compose(new ReplyContext(decision, conversation.facts(), intent.register(), recent, null), meter);
+
+        conversations.save(session, List.of(
+                NewTurn.traveller(message, intent),
+                NewTurn.bot(reply.text(), decision, reply.validation(), elapsedMs(started))));
+        return new ConversationReply(reply.text(), session.currentOffer(), session.status(), decision.reasonCode(),
+                IntentType.ACCEPT, reply.source(), meter.usage());
+    }
+
+    /** Hinglish if the traveller's last message was; otherwise English. */
+    private Register lastRegister(Conversation conversation) {
+        return conversation.transcript().reversed().stream()
+                .filter(m -> m.from() == ChatMessage.Sender.TRAVELLER)
+                .findFirst()
+                .map(m -> new com.latestay.conversation.intent.KeywordIntentClassifier(
+                        new com.latestay.conversation.intent.AmountExtractor()).register(m.text()))
+                .orElse(Register.ENGLISH);
     }
 
     static TravellerEvent toEvent(Intent intent) {
@@ -105,25 +169,32 @@ public class ConversationService {
         };
     }
 
-    private record Composed(String text, ReplySource source) {
+    private record Composed(String text, ReplySource source, String validation) {
     }
 
     /** LLM draft, one retry if it fails validation, then the template. No retry after the LLM fails. */
     private Composed compose(ReplyContext context, LlmUsageMeter meter) {
+        List<String> problems = new ArrayList<>();
         for (int attempt = 0; attempt < PHRASING_ATTEMPTS; attempt++) {
             String draft;
             try {
                 draft = phraser.phrase(context, attempt > 0, meter);
             } catch (LlmUnavailableException e) {
                 log.debug("Reply falls back to template: {}", e.getMessage());
+                problems.add(e.timedOut() ? "llm timed out" : "llm unavailable");
                 break;
             }
             ReplyValidator.Result result = validator.validate(draft, context.amount());
             if (result.valid()) {
-                return new Composed(draft, ReplySource.LLM);
+                return new Composed(draft, ReplySource.LLM, LLM_OK);
             }
             log.warn("Rejected LLM reply ({}), attempt {}", result.problem(), attempt + 1);
+            problems.add(result.problem());
         }
-        return new Composed(templates.render(context), ReplySource.TEMPLATE);
+        return new Composed(templates.render(context), ReplySource.TEMPLATE, "TEMPLATE: " + String.join("; ", problems));
+    }
+
+    private static int elapsedMs(long startedNanos) {
+        return (int) ((System.nanoTime() - startedNanos) / 1_000_000);
     }
 }

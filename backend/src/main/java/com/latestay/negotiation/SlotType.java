@@ -1,6 +1,8 @@
 package com.latestay.negotiation;
 
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * The part of the night a traveller books. Arrival windows are inclusive and may cross midnight.
@@ -29,6 +31,11 @@ public enum SlotType {
 
     public LocalTime leaveBy() {
         return leaveBy;
+    }
+
+    /** The slot whose arrival window contains this time, if any. */
+    public static Optional<SlotType> forArrival(LocalTime arrival) {
+        return Arrays.stream(values()).filter(slot -> slot.accepts(arrival)).findFirst();
     }
 
     public boolean accepts(LocalTime arrival) {

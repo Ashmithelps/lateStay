@@ -9,7 +9,8 @@ The web app borrows Airbnb's layout language (white canvas, big rounded photos, 
 | Ink | #222222 | Headings and body text |
 | Ink secondary | #6A6A6A | Distances, metadata, helper text |
 | Hairline | #DDDDDD | Borders and dividers |
-| Ember (accent) | #D9572B, hover #BF4A22 | The one primary button per screen |
+| Ember (accent) | #D9572B | Accent marks that carry no text (the saved heart) |
+| Ember button | #BF4A22, hover #A63F1C | The one primary button per screen (white label at about 5:1, WCAG AA) |
 | Pine | #1E6B52 | Rooms free, confirmed |
 | Error | #B42318 | Errors only |
 
