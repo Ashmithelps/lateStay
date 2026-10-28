@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: latestay-backend
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+latestay:
+  web-origin: ${WEB_ORIGIN:http://localhost:3000}
+  llm:
+    provider: ${LLM_PROVIDER:none}
+    model: ${LLM_MODEL:}
+    api-key: ${LLM_API_KEY:}
+    base-url: ${LLM_BASE_URL:}
+    timeout: 8s

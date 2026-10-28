@@ -1,0 +1,35 @@
+# Env files (keep the examples)
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Java / Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.log
+out/
+bin/
+
+# Node / Next.js
+node_modules/
+.next/
+web/out/
+next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Simulator output
+sim/reports/
