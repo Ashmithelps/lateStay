@@ -96,7 +96,7 @@ function BookingRow({ b, api, now, showStatus }: { b: AdminBooking; api: AdminAp
         <dt>Arrive</dt>
         <dd className="text-ink">{formatTime(b.arriveAt)} {formatDay(b.arriveAt)} (by {formatTime(b.arriveBy)})</dd>
         <dt>Guests</dt>
-        <dd className="text-ink">{b.guests} · {formatIndianMobile(b.phone)}</dd>
+        <dd className="text-ink">{b.guests} · {b.phone ? formatIndianMobile(b.phone) : "phone deleted"}</dd>
         <dt>Price</dt>
         <dd className="text-ink">
           {formatPrice(b.agreedPrice)} ({formatPrice(b.depositAmount)} paid online, {formatPrice(b.payAtDesk)} at desk)

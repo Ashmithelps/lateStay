@@ -186,4 +186,37 @@ class BookingJobsIT extends BookingItSupport {
         assertThat(statusOf(pending.bookingId())).isEqualTo(BookingStatus.EXPIRED);
         assertThat(statusOf(paid.bookingId())).isEqualTo(BookingStatus.HOTEL_TIMEOUT);
     }
+
+    @Test
+    void phoneNumbersAreDeletedNinetyDaysAfterTheStay() throws Exception {
+        BookingCreated created = booked();
+        fixtures.pay(created);
+        jdbc.sql("UPDATE payment SET raw_event = CAST(:raw AS jsonb) WHERE booking_id = :id")
+                .param("raw", "{\"payload\":{\"payment\":{\"entity\":{\"contact\":\"+919876543210\"}}}}")
+                .param("id", created.bookingId()).update();
+        Instant leaveAt = Instant.parse("2026-11-12T03:30:00Z");
+
+        clock.set(leaveAt.plus(Duration.ofDays(90)).minus(SECOND));
+        jobs.deleteOldPhoneNumbers();
+        assertThat(phone(created)).isEqualTo("+919876543210");
+
+        clock.set(leaveAt.plus(Duration.ofDays(90)));
+        jobs.deleteOldPhoneNumbers();
+        assertThat(phone(created)).isNull();
+        assertThat(payment(created.bookingId()).get("raw")).isNull();
+        assertThat(jdbc.sql("SELECT phone_deleted_at FROM booking WHERE id = :id").param("id", created.bookingId())
+                .query(java.time.OffsetDateTime.class).single().toInstant()).isEqualTo(leaveAt.plus(Duration.ofDays(90)));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/bookings/{id}", created.bookingId()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.phone")
+                        .doesNotExist())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.guestName")
+                        .value("Asha Verma"));
+    }
+
+    String phone(BookingCreated created) {
+        return jdbc.sql("SELECT phone FROM booking WHERE id = :id").param("id", created.bookingId())
+                .query(String.class).optional().orElse(null);
+    }
 }

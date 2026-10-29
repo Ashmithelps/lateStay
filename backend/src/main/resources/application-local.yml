@@ -10,6 +10,10 @@ spring:
 latestay:
   razorpay:
     allow-fake: true
+  # The simulator sends hundreds of chat messages from one IP; the per-session limit still applies.
+  rate-limit:
+    messages-per-ip: 100000
+    negotiations-per-ip: 100000
 
 logging:
   level:

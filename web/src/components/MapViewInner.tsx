@@ -4,6 +4,12 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+
+// Production needs a tile provider (OpenStreetMap's own servers forbid app traffic at scale); see docs/DEPLOY.md.
+const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 import type { MapPoint, MapViewProps } from "./MapView";
 
 function escapeHtml(text: string) {
@@ -73,8 +79,8 @@ export default function MapViewInner({ points, center, selectedId, onSelect, int
       style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={TILE_ATTRIBUTION}
+        url={TILE_URL}
       />
       <FitBounds points={points} center={center} />
       <KeepSelectedVisible points={points} selectedId={selectedId} />

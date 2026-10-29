@@ -44,8 +44,9 @@ public final class BookingDtos {
      * the hotel has confirmed; {@code nextBest} only when the booking fell through; {@code refundedFrom} says why a
      * REFUNDED booking was refunded (HOTEL_DECLINED, HOTEL_TIMEOUT or CANCELLED).
      */
+    /** {@code phone} is null once it has been deleted, 90 days after the stay. */
     public record BookingView(UUID id, UUID sessionId, BookingStatus status, HotelInfo hotel, String roomType,
-            String guestName, String phone, int guests, LocalDateTime arriveAt, LocalDateTime arriveBy,
+            String guestName, @Schema(nullable = true) String phone, int guests, LocalDateTime arriveAt, LocalDateTime arriveBy,
             LocalDateTime leaveAt, long agreedPrice, long depositAmount, long payAtDesk,
             @Schema(nullable = true) String code, Instant payBy, @Schema(nullable = true) Instant confirmBy,
             @Schema(nullable = true) Refund refund, @Schema(nullable = true) NextBest nextBest,

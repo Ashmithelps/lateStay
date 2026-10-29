@@ -23,6 +23,15 @@ springdoc:
   paths-to-match: /api/**
   paths-to-exclude: /api/admin/**, /api/dev/**
 
+# Errors to Sentry when SENTRY_DSN is set (free tier). No personal data: see web.SentryConfig.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  send-default-pii: false
+  logging:
+    minimum-event-level: error
+    minimum-breadcrumb-level: info
+
 management:
   endpoints:
     web:
@@ -44,11 +53,18 @@ latestay:
   jobs:
     enabled: ${JOBS_ENABLED:true}
     interval: 15s
+  rate-limit:
+    enabled: true
+    messages-per-session: 20
+    messages-per-ip: 20
+    negotiations-per-ip: 30
+    bookings-per-ip: 10
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
     allow-fake: false
+    allow-live: ${RAZORPAY_ALLOW_LIVE:false}
   whatsapp:
     phone-number-id: ${WA_PHONE_NUMBER_ID:}
     access-token: ${WA_ACCESS_TOKEN:}

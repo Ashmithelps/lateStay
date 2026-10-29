@@ -324,6 +324,13 @@ public class BookingService {
         return issued;
     }
 
+    /** Privacy: phone numbers go {@code phoneRetention} after the stay ends. */
+    @Transactional
+    public int deleteOldPhoneNumbers() {
+        Instant now = clock.instant();
+        return bookings.deletePhonesBefore(now.minus(properties.phoneRetention()), now);
+    }
+
     // Helpers
 
     public List<UUID> due(BookingStatus status, String column, Duration after) {

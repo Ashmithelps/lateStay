@@ -17,11 +17,11 @@ import { useLastSearchHref } from "@/lib/search-state";
 
 const CLOSED: SessionStatus[] = ["NO_DEAL", "EXPIRED"];
 
-export function HaggleScreen() {
+export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
   const { sessionId } = useParams<{ sessionId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const negotiation = useNegotiation(sessionId);
+  const negotiation = useNegotiation(sessionId, initial);
 
   const [error, setError] = useState<string | null>(null);
   const backHref = useLastSearchHref();
@@ -54,9 +54,24 @@ export function HaggleScreen() {
     if (reply.status === "AGREED") router.push(`/book/${sessionId}`);
   }
 
-  function onError(e: unknown) {
+  /** Takes back the optimistic traveller message that the server never received. */
+  function dropUnsent(text: string) {
+    patch((view) => {
+      const last = view.messages.length - 1;
+      return last >= 0 && view.messages[last].role === "TRAVELLER" && view.messages[last].text === text
+        ? { ...view, messages: view.messages.slice(0, last) }
+        : view;
+    });
+  }
+
+  function onError(e: unknown, sent: string) {
     if (e instanceof ApiError && e.status === 409) {
       negotiation.refetch();
+      return;
+    }
+    dropUnsent(sent);
+    if (e instanceof ApiError && e.status === 429) {
+      setError("Slow down a little: too many messages in a minute. Try again in a few seconds.");
       return;
     }
     setError("That didn't go through. Please try again.");
@@ -66,14 +81,14 @@ export function HaggleScreen() {
     mutationFn: (text: string) => api.sendMessage(sessionId, text),
     onMutate: addTravellerMessage,
     onSuccess: applyReply,
-    onError,
+    onError: (e, text) => onError(e, text),
   });
 
   const accept = useMutation({
     mutationFn: () => api.accept(sessionId),
     onMutate: () => addTravellerMessage(`Accept ${formatPrice(offer)}`),
     onSuccess: applyReply,
-    onError,
+    onError: (e) => onError(e, `Accept ${formatPrice(offer)}`),
   });
 
   const busy = send.isPending || accept.isPending;

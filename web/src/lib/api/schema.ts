@@ -255,7 +255,7 @@ export interface components {
             payAtDesk: number;
             /** Format: date-time */
             payBy: string;
-            phone: string;
+            phone: string | null;
             refund: components["schemas"]["Refund"];
             /** @enum {string|null} */
             refundedFrom: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | null;

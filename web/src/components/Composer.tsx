@@ -7,7 +7,9 @@ import { quickOffers } from "@/lib/stay";
 import { Chip } from "./Chip";
 import { cx, focusRing } from "./ui";
 
-/** Quick-offer chips and the message input. */
+export const MAX_MESSAGE = 500;
+
+/** Quick-offer chips and the message input (500 characters, the backend's limit). */
 export function Composer({ offer, disabled, onSend }: { offer: number; disabled?: boolean; onSend: (text: string) => void }) {
   const [text, setText] = useState("");
 
@@ -44,7 +46,8 @@ export function Composer({ offer, disabled, onSend }: { offer: number; disabled?
           id="message"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          maxLength={500}
+          maxLength={MAX_MESSAGE}
+          aria-describedby={text.length > MAX_MESSAGE - 100 ? "message-count" : undefined}
           autoComplete="off"
           placeholder="Make an offer or ask a question"
           className={cx(
@@ -65,6 +68,11 @@ export function Composer({ offer, disabled, onSend }: { offer: number; disabled?
           <SendHorizontal size={20} strokeWidth={1.5} aria-hidden />
         </button>
       </form>
+      {text.length > MAX_MESSAGE - 100 && (
+        <p id="message-count" className="px-5 text-12 text-ink-secondary tabular-nums" aria-live="polite">
+          {text.length} of {MAX_MESSAGE} characters
+        </p>
+      )}
     </div>
   );
 }

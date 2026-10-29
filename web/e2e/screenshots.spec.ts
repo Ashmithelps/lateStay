@@ -237,8 +237,65 @@ test("admin", async ({ page }, info) => {
   await expect(page.getByText("Ping queued")).toBeVisible();
   const owner = (await page.getByText(/^Owner number /).textContent())!.replace("Owner number ", "");
   await page.request.post(`${API}/api/dev/whatsapp/inbound`, { data: { from: owner, text: "2 room khali hai" } });
-  await expect(page.getByText("2 room khali hai")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("2 room khali hai").first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Floor rules/).first()).toBeVisible();
   await shot(page, info, "19-admin-hotels");
   await shot(page, info, "19-admin-hotels-full", true);
+});
+
+test("privacy and terms", async ({ page }, info) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy", level: 1 })).toBeVisible();
+  await expect(page.getByText(/phone number is deleted 90 days after your stay/i)).toBeVisible();
+  await shot(page, info, "20-privacy", true);
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Terms", level: 1 })).toBeVisible();
+  await shot(page, info, "21-terms", true);
+});
+
+test("haggle: rate limited", async ({ page }, info) => {
+  await startHaggling(page);
+  await page.route("**/api/negotiations/*/messages", (route) =>
+    route.fulfill({
+      status: 429,
+      headers: { "Retry-After": "12", "Content-Type": "application/problem+json" },
+      body: JSON.stringify({ status: 429, detail: "Too many requests. Try again in 12 seconds.", retryAfter: 12 }),
+    }),
+  );
+  await page.getByLabel("Message the front desk").fill("700 mein de do");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText(/Slow down a little/)).toBeVisible();
+  await shot(page, info, "22-haggle-rate-limited");
+});
+
+test("offline: saved pass, last search and the offline page", async ({ page, context, request }, info) => {
+  const id = await bookAndPay(page);
+  expect((await request.post(`${API}/api/admin/bookings/${id}/confirm`, { headers: adminHeaders })).ok()).toBe(true);
+
+  // Let the service worker install and take control, then load the pages once so they're cached.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect(page.getByText("Show this code at the desk")).toBeVisible();
+  await page.goto("/");
+  await expect(page.locator("article").first()).toBeVisible();
+  await page.goto(`/pass/${id}`);
+  await expect(page.getByText("Show this code at the desk")).toBeVisible();
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByText("Show this code at the desk")).toBeVisible();
+  await expect(page.getByText(/You're offline\. This pass was last updated/)).toBeVisible();
+  await shot(page, info, "23-pass-offline");
+
+  await page.goto("/");
+  await expect(page.locator("article").first()).toBeVisible();
+  await expect(page.getByText(/You're offline\. Showing your last search/)).toBeVisible();
+  await shot(page, info, "24-home-offline");
+
+  await page.goto("/hotels/not-visited-yet");
+  await expect(page.getByRole("heading", { name: "You're offline" })).toBeVisible();
+  await shot(page, info, "25-offline-page");
+  await context.setOffline(false);
 });

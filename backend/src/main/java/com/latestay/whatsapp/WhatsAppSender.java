@@ -2,6 +2,7 @@ package com.latestay.whatsapp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import com.latestay.web.Pii;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +46,8 @@ public class WhatsAppSender {
                 messages.sent(message.id(), waMessageId, clock.instant());
                 sent++;
             } catch (WhatsAppSendException | IOException e) {
-                log.warn("WhatsApp send {} to {} failed (attempt {}): {}", message.id(), message.waId(),
-                        message.attempts() + 1, e.getMessage());
+                log.warn("WhatsApp send {} to {} failed (attempt {}): {}", message.id(), Pii.mask(message.waId()),
+                        message.attempts() + 1, Pii.scrub(e.getMessage()));
                 messages.sendFailed(message.id(), e.getMessage(), properties.maxAttempts(), clock.instant());
             }
         }

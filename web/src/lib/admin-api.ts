@@ -9,7 +9,8 @@ export type AdminBooking = {
   hotelName: string;
   roomType: string;
   guestName: string;
-  phone: string;
+  /** Null once deleted, 90 days after the stay. */
+  phone: string | null;
   guests: number;
   arriveAt: string;
   arriveBy: string;

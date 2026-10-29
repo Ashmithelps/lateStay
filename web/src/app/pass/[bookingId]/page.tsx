@@ -1,10 +1,8 @@
-import { Suspense } from "react";
+import { api } from "@/lib/api";
+import { prefetch } from "@/lib/server-fetch";
 import { PassScreen } from "./PassScreen";
 
-export default function PassPage() {
-  return (
-    <Suspense fallback={null}>
-      <PassScreen />
-    </Suspense>
-  );
+export default async function PassPage({ params }: PageProps<"/pass/[bookingId]">) {
+  const { bookingId } = await params;
+  return <PassScreen initial={await prefetch(api.booking(bookingId))} />;
 }

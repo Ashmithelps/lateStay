@@ -3,6 +3,7 @@ package com.latestay.whatsapp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.latestay.whatsapp.WhatsAppMessageRepository.OwnedHotel;
+import com.latestay.web.Pii;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.List;
@@ -120,7 +121,7 @@ public class WhatsAppWebhookService {
             boolean stored = messages.insertInbound(waMessageId, null, from, type, message.toString(), "IGNORED",
                     clock.instant());
             if (stored) {
-                log.info("WhatsApp message from unknown number {} ignored", from);
+                log.info("WhatsApp message from unknown number {} ignored", Pii.mask(from));
             }
             return stored ? Inbound.IGNORED : Inbound.DUPLICATE;
         }

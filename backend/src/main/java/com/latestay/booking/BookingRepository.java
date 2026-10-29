@@ -160,6 +160,22 @@ public class BookingRepository {
                 .param("status", status.name()).param("cutoff", at(cutoff)).query(UUID.class).list();
     }
 
+    /**
+     * Deletes phone numbers of stays that ended before {@code cutoff}, including the copy Razorpay sent in the
+     * payment webhook (its "contact" field), by dropping the stored raw event. Returns how many bookings changed.
+     */
+    public int deletePhonesBefore(Instant cutoff, Instant now) {
+        jdbc.sql("""
+                        UPDATE payment SET raw_event = NULL, updated_at = :now
+                        WHERE raw_event IS NOT NULL AND booking_id IN (
+                            SELECT id FROM booking WHERE phone IS NOT NULL AND leave_at <= :cutoff)""")
+                .param("cutoff", at(cutoff)).param("now", at(now)).update();
+        return jdbc.sql("""
+                        UPDATE booking SET phone = NULL, phone_deleted_at = :now, updated_at = :now
+                        WHERE phone IS NOT NULL AND leave_at <= :cutoff""")
+                .param("cutoff", at(cutoff)).param("now", at(now)).update();
+    }
+
     static OffsetDateTime at(Instant instant) {
         return instant == null ? null : instant.atOffset(ZoneOffset.UTC);
     }

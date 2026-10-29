@@ -16,6 +16,10 @@ class PaymentConfig {
 
     @Bean
     RazorpayGateway razorpayGateway(RazorpayProperties properties, RestClient.Builder builder) {
+        if (properties.keyId().startsWith("rzp_live_") && !properties.allowLive()) {
+            throw new IllegalStateException("Live Razorpay keys are set but RAZORPAY_ALLOW_LIVE is not true. "
+                    + "LateStay stays in test mode until live mode is switched on deliberately.");
+        }
         if (properties.hasKeys()) {
             return new HttpRazorpayGateway(properties, builder);
         }

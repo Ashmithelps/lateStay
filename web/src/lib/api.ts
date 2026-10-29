@@ -32,7 +32,8 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    // Content-Type only with a body: on a GET it would make the request "non-simple" and cost a CORS preflight.
+    headers: { ...(init?.body ? { "Content-Type": "application/json" } : {}), ...init?.headers },
     cache: "no-store",
   });
   if (!response.ok) {

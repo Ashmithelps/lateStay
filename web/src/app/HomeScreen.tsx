@@ -12,20 +12,25 @@ import { FilterChips } from "@/components/FilterChips";
 import { HotelCard, HotelCardSkeleton } from "@/components/HotelCard";
 import { MapToggle } from "@/components/MapToggle";
 import { MapView } from "@/components/MapView";
+import { LegalFooter } from "@/components/LegalPage";
+import { OfflineNote } from "@/components/OfflineNote";
 import { SearchPill, type SearchSection } from "@/components/SearchPill";
-import { SearchSheet } from "@/components/SearchSheet";
+import dynamic from "next/dynamic";
 import { Wordmark } from "@/components/Wordmark";
 import { cx, focusRing } from "@/components/ui";
 import type { FilterCode } from "@/lib/amenities";
 import { formatPrice, formatTime } from "@/lib/format";
-import { useSearchResults } from "@/lib/queries";
+import { useSearchResults, type InitialSearch } from "@/lib/queries";
 import { readSearch, rememberSearch, writeSearch, type SearchState } from "@/lib/search-state";
 import { stayDates } from "@/lib/stay";
 import { TOWNS } from "@/lib/towns";
 
+// Only mounted once the traveller opens it, so its code stays out of the first load.
+const SearchSheet = dynamic(() => import("@/components/SearchSheet").then((m) => m.SearchSheet));
+
 const container = "mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10";
 
-export function HomeScreen() {
+export function HomeScreen({ initial }: { initial?: InitialSearch }) {
   const router = useRouter();
   const params = useSearchParams();
   const queryString = params.toString();
@@ -43,7 +48,7 @@ export function HomeScreen() {
       filters: search.filters.length ? search.filters.join(",") : undefined,
     };
   }, [search]);
-  const results = useSearchResults(apiQuery);
+  const results = useSearchResults(apiQuery, initial);
 
   const [sheet, setSheet] = useState<{ open: boolean; section: SearchSection }>({ open: false, section: "where" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,7 +61,9 @@ export function HomeScreen() {
   const go = useCallback(
     (next: SearchState, view: "list" | "map" = showMap ? "map" : "list") => {
       const query = writeSearch(next);
-      router.push(view === "map" ? `/?${query}&view=map` : `/?${query}`, { scroll: false });
+      router.push(view === "map" ? `/?${query}&view=map` : `/?${query}`, {
+        scroll: false,
+      });
     },
     [router, showMap],
   );
@@ -67,7 +74,9 @@ export function HomeScreen() {
   }, []);
 
   function toggleFilter(code: FilterCode) {
-    const filters = search.filters.includes(code) ? search.filters.filter((f) => f !== code) : [...search.filters, code];
+    const filters = search.filters.includes(code)
+      ? search.filters.filter((f) => f !== code)
+      : [...search.filters, code];
     go({ ...search, filters });
   }
 
@@ -136,7 +145,14 @@ export function HomeScreen() {
             : "Nothing within 10 km has a room for this time. Try a nearby town or another arrival time."
         }
         actions={[
-          ...(search.filters.length ? [{ label: "Remove filters", href: `/?${writeSearch({ ...search, filters: [] })}` }] : []),
+          ...(search.filters.length
+            ? [
+                {
+                  label: "Remove filters",
+                  href: `/?${writeSearch({ ...search, filters: [] })}`,
+                },
+              ]
+            : []),
           ...others.slice(0, 2).map((t) => ({
             label: `Try ${t.name}`,
             href: `/?${writeSearch({ ...search, place: t.id, placeLabel: t.name, lat: t.lat, lng: t.lng })}`,
@@ -148,7 +164,7 @@ export function HomeScreen() {
     body = (
       <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {hotels.map((hotel, i) => (
-          <HotelCard key={hotel.id} hotel={hotel} href={hrefFor(hotel.slug)} priority={i < 4} />
+          <HotelCard key={hotel.id} hotel={hotel} href={hrefFor(hotel.slug)} priority={i === 0} />
         ))}
       </div>
     );
@@ -160,7 +176,13 @@ export function HomeScreen() {
       {showMap ? (
         <main className="relative min-h-0 flex-1">
           <MapView
-            points={hotels.map((h) => ({ id: h.id, lat: h.lat, lng: h.lng, label: formatPrice(h.fromPrice), title: h.name }))}
+            points={hotels.map((h) => ({
+              id: h.id,
+              lat: h.lat,
+              lng: h.lng,
+              label: formatPrice(h.fromPrice),
+              title: h.name,
+            }))}
             center={[search.lat, search.lng]}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -172,10 +194,19 @@ export function HomeScreen() {
           )}
         </main>
       ) : (
-        <main className={cx(container, "pb-28 pt-6")}>
-          {(results.isPending || hotels.length > 0) && summary}
-          {body}
-        </main>
+        <>
+          <main className={cx(container, "pb-12 pt-6")}>
+            <OfflineNote className="mb-4">
+              You&apos;re offline. Showing your last search; prices may have changed.
+            </OfflineNote>
+            {(results.isPending || hotels.length > 0) && summary}
+            {body}
+          </main>
+          {/* Room for the floating "Show map" pill below the footer. */}
+          <div className="pb-20">
+            <LegalFooter />
+          </div>
+        </>
       )}
       {(hotels.length > 0 || showMap) && (
         <MapToggle

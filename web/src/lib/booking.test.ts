@@ -52,3 +52,23 @@ describe("saved bookings", () => {
     expect(latestBooking([])).toBeNull();
   });
 });
+
+describe("Sentry scrubbing", async () => {
+  const { scrubEvent, scrubPhones } = await import("./sentry-scrub");
+
+  it("masks phone numbers and drops personal fields", () => {
+    expect(scrubPhones("call +91 98765 43210 or 9812345678")).toBe("call +91•••••3210 or •••••5678");
+    expect(scrubPhones("booking 4821 for ₹1,300 at 1794416400")).toBe("booking 4821 for ₹1,300 at 1794416400");
+    const event = scrubEvent({
+      type: undefined,
+      message: "Payment failed for 919876543210",
+      exception: { values: [{ value: "Bad phone 09876543210" }] },
+      request: { data: { phone: "9876543210" }, cookies: { a: "b" }, query_string: "phone=9876543210" },
+      user: { id: "x" },
+    });
+    expect(event.message).toBe("Payment failed for +91•••••3210");
+    expect(event.exception?.values?.[0].value).toBe("Bad phone •••••3210");
+    expect(event.request?.data).toBeUndefined();
+    expect(event.user).toBeUndefined();
+  });
+});

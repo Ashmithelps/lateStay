@@ -1,12 +1,30 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api, type BookingView, type SearchQuery } from "./api";
+import {
+  api,
+  type BookingPreview,
+  type BookingView,
+  type HotelDetail,
+  type NegotiationView,
+  type SearchQuery,
+  type SearchResponse,
+} from "./api";
 
-export function useSearchResults(query: SearchQuery) {
+/*
+ * Each hook takes the data its page fetched on the server (if any), so the first render already has it and the
+ * LCP photo is in the HTML instead of waiting for the JavaScript to fetch it.
+ */
+
+/** Server-fetched results apply only to the query they were fetched for. */
+export type InitialSearch = { query: SearchQuery; data: SearchResponse };
+
+export function useSearchResults(query: SearchQuery, initial?: InitialSearch) {
+  const matches = initial !== undefined && JSON.stringify(initial.query) === JSON.stringify(query);
   return useQuery({
     queryKey: ["search", query],
     queryFn: () => api.search(query),
+    initialData: matches ? initial.data : undefined,
     // Each search records a stay request: don't repeat it on focus or remount.
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -14,27 +32,30 @@ export function useSearchResults(query: SearchQuery) {
   });
 }
 
-export function useHotel(slug: string, stayRequestId: string | undefined) {
+export function useHotel(slug: string, stayRequestId: string | undefined, initial?: HotelDetail) {
   return useQuery({
     queryKey: ["hotel", slug, stayRequestId ?? null],
     queryFn: () => api.hotel(slug, stayRequestId),
+    initialData: initial,
     retry: 1,
   });
 }
 
-export function useNegotiation(id: string) {
+export function useNegotiation(id: string, initial?: NegotiationView) {
   return useQuery({
     queryKey: ["negotiation", id],
     queryFn: () => api.negotiation(id),
+    initialData: initial,
     refetchOnWindowFocus: false,
     retry: 1,
   });
 }
 
-export function useBookingPreview(sessionId: string) {
+export function useBookingPreview(sessionId: string, initial?: BookingPreview) {
   return useQuery({
     queryKey: ["booking-preview", sessionId],
     queryFn: () => api.bookingPreview(sessionId),
+    initialData: initial,
     refetchOnWindowFocus: false,
     retry: 1,
   });
@@ -49,10 +70,11 @@ export function isWaiting(booking: BookingView): boolean {
   );
 }
 
-export function useBooking(id: string) {
+export function useBooking(id: string, initial?: BookingView) {
   return useQuery({
     queryKey: ["booking", id],
     queryFn: () => api.booking(id),
+    initialData: initial,
     refetchInterval: (query) => (query.state.data && isWaiting(query.state.data) ? 5000 : false),
     retry: 1,
   });

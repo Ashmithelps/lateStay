@@ -46,10 +46,11 @@ function useSaved(id: string): [boolean, () => void] {
   return [saved, toggle];
 }
 
-export function HotelCard({ hotel, href, priority, compact }: {
+export function HotelCard({ hotel, href, priority, eager, compact }: {
   hotel: HotelResult;
   href: string;
   priority?: boolean;
+  eager?: boolean;
   compact?: boolean;
 }) {
   const [saved, toggleSaved] = useSaved(hotel.id);
@@ -61,6 +62,7 @@ export function HotelCard({ hotel, href, priority, compact }: {
           alt=""
           sizes={compact ? "112px" : "(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"}
           priority={priority}
+          eager={eager}
           className="aspect-[20/19] rounded-card"
         />
       </Link>
@@ -82,11 +84,11 @@ export function HotelCard({ hotel, href, priority, compact }: {
       )}
       <div className={cx(compact ? "min-w-0 flex-1 py-1" : "mt-3")}>
         <div className="flex items-start justify-between gap-3">
-          <h3 className="truncate text-16 font-semibold text-ink">
+          <h2 className="truncate text-16 font-semibold text-ink">
             <Link href={href} className="rounded-control outline-none hover:underline focus-visible:underline">
               {hotel.name}
             </Link>
-          </h3>
+          </h2>
           {hotel.rating !== null && (
             <span className="inline-flex shrink-0 items-center gap-1 text-14 text-ink tabular-nums">
               <Star size={14} strokeWidth={1.5} className="fill-ink" aria-hidden />

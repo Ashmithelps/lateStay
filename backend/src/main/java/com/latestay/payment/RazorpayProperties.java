@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * Razorpay test or live keys ({@code latestay.razorpay.*}, from RAZORPAY_* env vars).
  *
  * @param allowFake with no keys, use {@link FakeRazorpayGateway} instead of disabling payments (local and tests only)
+ * @param allowLive accept live keys (rzp_live_...); off until the account has passed KYC and test mode is retired
  */
 @ConfigurationProperties("latestay.razorpay")
 public record RazorpayProperties(
@@ -14,7 +15,8 @@ public record RazorpayProperties(
         @DefaultValue("") String keySecret,
         @DefaultValue("") String webhookSecret,
         @DefaultValue("https://api.razorpay.com/v1") String baseUrl,
-        @DefaultValue("false") boolean allowFake) {
+        @DefaultValue("false") boolean allowFake,
+        @DefaultValue("false") boolean allowLive) {
 
     public boolean hasKeys() {
         return !keyId.isBlank() && !keySecret.isBlank();

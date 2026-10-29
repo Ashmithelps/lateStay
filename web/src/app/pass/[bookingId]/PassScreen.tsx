@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Button, ButtonLink } from "@/components/Button";
 import { DetailRows, type DetailRow } from "@/components/DetailRows";
+import { OfflineNote } from "@/components/OfflineNote";
 import { PageHeader } from "@/components/PageHeader";
 import { Photo } from "@/components/Photo";
 import { TypingDots } from "@/components/TypingDots";
@@ -17,9 +18,9 @@ import { useBooking } from "@/lib/queries";
 import { useLastSearchHref } from "@/lib/search-state";
 
 /** The booking pass: waiting for the hotel, the desk code once confirmed, or what happens next if it fell through. */
-export function PassScreen() {
+export function PassScreen({ initial }: { initial?: BookingView }) {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const booking = useBooking(bookingId);
+  const booking = useBooking(bookingId, initial);
   const backHref = useLastSearchHref();
   const b = booking.data;
 
@@ -39,6 +40,10 @@ export function PassScreen() {
           </div>
         ) : (
           <div aria-live="polite">
+            <OfflineNote className="mb-6">
+              You&apos;re offline. This pass was last updated at {formatInstantTime(new Date(booking.dataUpdatedAt).toISOString())}.
+              Your code still works at the desk.
+            </OfflineNote>
             <Pass b={b} />
           </div>
         )}

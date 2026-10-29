@@ -517,7 +517,8 @@
             "format" : "date-time"
           },
           "phone" : {
-            "type" : "string"
+            "type" : "string",
+            "nullable" : true
           },
           "refund" : {
             "$ref" : "#/components/schemas/Refund"
@@ -883,7 +884,7 @@
         "type" : "object",
         "properties" : {
           "text" : {
-            "maxLength" : 4000,
+            "maxLength" : 500,
             "minLength" : 0,
             "type" : "string"
           }

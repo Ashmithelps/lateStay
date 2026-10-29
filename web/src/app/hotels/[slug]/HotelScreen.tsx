@@ -94,11 +94,11 @@ function checkInRules(hotel: HotelDetail): { term: string; text: string }[] {
   return rules;
 }
 
-export function HotelScreen() {
+export function HotelScreen({ initial }: { initial?: HotelDetail }) {
   const { slug } = useParams<{ slug: string }>();
   const stayId = useSearchParams().get("stay") || undefined;
   const router = useRouter();
-  const hotel = useHotel(slug, stayId);
+  const hotel = useHotel(slug, stayId, initial);
   const [roomId, setRoomId] = useState<string | null>(null);
   const backHref = useLastSearchHref();
 

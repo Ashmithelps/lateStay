@@ -92,7 +92,7 @@ class ConversationControllerTest {
         String id = open();
 
         send(id, " ").andExpect(status().isBadRequest());
-        send(id, "x".repeat(4001)).andExpect(status().isBadRequest());
+        send(id, "x".repeat(501)).andExpect(status().isBadRequest());
         send("nope", "hi").andExpect(status().isNotFound());
 
         send(id, "ok done").andExpect(jsonPath("$.status").value("AGREED"));

@@ -23,14 +23,16 @@ export const SearchPill = forwardRef<HTMLDivElement, Props>(function SearchPill(
         type="button"
         onClick={() => onOpen("where")}
         className={cx("flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-full px-3 text-left md:hidden", focusRing)}
-        aria-label={`Search: ${search.placeLabel}, arrive ${formatTime(search.arrive)}, leave ${formatTime(search.leave)}, ${guests}. Change search`}
       >
+        {/* The accessible name is the visible text plus these hidden words, so voice control matches what's shown. */}
+        <span className="sr-only">Search: </span>
         <span className="min-w-0">
           <span className="block truncate text-14 font-semibold text-ink">{search.placeLabel}</span>
           <span className="block truncate text-12 text-ink-secondary">
             Tonight {formatTime(search.arrive)} – {formatTime(search.leave)} · {guests}
           </span>
         </span>
+        <span className="sr-only">. Change search</span>
       </button>
 
       {/* Desktop: four segments. */}

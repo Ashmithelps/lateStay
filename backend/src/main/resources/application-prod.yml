@@ -1,0 +1,39 @@
+# Production (SPRING_PROFILES_ACTIVE=prod). ProductionSafety refuses to start with development settings.
+
+server:
+  # Fly's proxy sets X-Forwarded-For / -Proto: rate limits see the client's IP, redirects stay https.
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    hikari:
+      maximum-pool-size: 8
+
+# One JSON object per line; phone numbers masked in every field (web.PiiLogCustomizer).
+logging:
+  structured:
+    format:
+      console: logstash
+    json:
+      customizer: com.latestay.web.PiiLogCustomizer
+  level:
+    root: INFO
+    com.latestay: INFO
+
+sentry:
+  environment: ${SENTRY_ENVIRONMENT:production}
+
+# The API docs are for the web app's type generation, not for the public.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never

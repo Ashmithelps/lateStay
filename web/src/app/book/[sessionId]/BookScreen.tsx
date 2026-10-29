@@ -7,7 +7,7 @@ import { DetailRows } from "@/components/DetailRows";
 import { Checkbox, TextField } from "@/components/Field";
 import { PageHeader } from "@/components/PageHeader";
 import { Photo } from "@/components/Photo";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, type BookingPreview } from "@/lib/api";
 import { saveBooking } from "@/lib/bookings-store";
 import { formatDay, formatPrice, formatTime, guestsLabel } from "@/lib/format";
 import { normaliseIndianMobile } from "@/lib/phone";
@@ -19,17 +19,16 @@ type Errors = { name?: string; phone?: string; consent?: string };
 function validate(name: string, phone: string, consent: boolean): Errors {
   const errors: Errors = {};
   if (!name.trim()) errors.name = "Enter the name the booking is under.";
-  if (!normaliseIndianMobile(phone))
-    errors.phone = "Enter a 10-digit Indian mobile number.";
+  if (!normaliseIndianMobile(phone)) errors.phone = "Enter a 10-digit Indian mobile number.";
   if (!consent) errors.consent = "The hotel checks a photo ID for every guest.";
   return errors;
 }
 
 /** Guest details and the deposit: one ember "Pay ₹200" button that opens Razorpay Checkout. */
-export function BookScreen() {
+export function BookScreen({ initial }: { initial?: BookingPreview }) {
   const { sessionId } = useParams<{ sessionId: string }>();
   const router = useRouter();
-  const preview = useBookingPreview(sessionId);
+  const preview = useBookingPreview(sessionId, initial);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
@@ -41,8 +40,7 @@ export function BookScreen() {
   // Already paid for: the pass is the page now.
   const existing = p?.booking;
   useEffect(() => {
-    if (existing && existing.status !== "PENDING_PAYMENT")
-      router.replace(`/pass/${existing.id}`);
+    if (existing && existing.status !== "PENDING_PAYMENT") router.replace(`/pass/${existing.id}`);
   }, [existing, router]);
 
   async function submit(event: FormEvent) {
@@ -67,10 +65,7 @@ export function BookScreen() {
         savedAt: Date.now(),
       });
       if (created.checkout) {
-        const paid = await pay(
-          created.checkout,
-          `${p.hotel.name}, ${p.roomType}`,
-        );
+        const paid = await pay(created.checkout, `${p.hotel.name}, ${p.roomType}`);
         await api.verifyPayment(created.bookingId, paid);
       }
       router.push(`/pass/${created.bookingId}`);
@@ -92,10 +87,7 @@ export function BookScreen() {
       <PageHeader backHref={back} backLabel="Back to the chat" />
       <main className="mx-auto max-w-[1120px] px-4 pb-16 pt-6 sm:px-6 lg:px-10">
         {preview.isPending ? (
-          <div
-            className="h-64 animate-pulse rounded-card bg-soft"
-            aria-busy="true"
-          />
+          <div className="h-64 animate-pulse rounded-card bg-soft" aria-busy="true" />
         ) : !p ? (
           <div className="py-12 text-center">
             <h1 className="text-22 font-semibold text-ink">
@@ -116,12 +108,7 @@ export function BookScreen() {
                 className="lg:order-2 lg:rounded-card lg:border lg:border-hairline lg:p-6"
               >
                 <div className="flex items-center gap-4">
-                  <Photo
-                    src={p.hotel.photo}
-                    alt=""
-                    sizes="96px"
-                    className="size-24 shrink-0 rounded-card"
-                  />
+                  <Photo src={p.hotel.photo} alt="" sizes="96px" className="size-24 shrink-0 rounded-card" />
                   <div className="min-w-0">
                     <h2 id="summary" className="text-18 font-semibold text-ink">
                       {p.hotel.name}
@@ -155,11 +142,7 @@ export function BookScreen() {
                 />
               </section>
 
-              <form
-                onSubmit={submit}
-                noValidate
-                className="lg:order-1 lg:max-w-[560px]"
-              >
+              <form onSubmit={submit} noValidate className="lg:order-1 lg:max-w-[560px]">
                 <h2 className="text-18 font-semibold text-ink">Your details</h2>
                 <div className="mt-4 grid gap-5">
                   <TextField
@@ -179,7 +162,7 @@ export function BookScreen() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     error={errors.phone}
-                    hint="The hotel calls this number if you're running late."
+                    hint="We only use it about this booking, for example if the hotel can't take it."
                   />
                   <Checkbox
                     id="consent"
@@ -195,20 +178,12 @@ export function BookScreen() {
                     {problem}
                   </p>
                 )}
-                <Button
-                  type="submit"
-                  fullWidth
-                  className="mt-6"
-                  disabled={paying}
-                >
-                  {paying
-                    ? "Opening payment…"
-                    : `Pay ${formatPrice(p.depositAmount)}`}
+                <Button type="submit" fullWidth className="mt-6" disabled={paying}>
+                  {paying ? "Opening payment…" : `Pay ${formatPrice(p.depositAmount)}`}
                 </Button>
                 <p className="mt-4 text-14 text-ink-secondary">
-                  Free cancellation until the hotel confirms. If it doesn&apos;t
-                  confirm within 5 minutes, your {formatPrice(p.depositAmount)}{" "}
-                  is refunded automatically.
+                  Free cancellation until the hotel confirms. If it doesn&apos;t confirm within 5 minutes, your{" "}
+                  {formatPrice(p.depositAmount)} is refunded automatically.
                 </p>
               </form>
             </div>

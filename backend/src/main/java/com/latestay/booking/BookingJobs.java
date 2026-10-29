@@ -54,6 +54,23 @@ public class BookingJobs {
         return bookings.issueRefunds(REFUND_BATCH);
     }
 
+    /** Once a night (03:30 India time): phone numbers of stays that ended more than 90 days ago. */
+    @Scheduled(cron = "${latestay.jobs.phone-retention-cron:0 30 3 * * *}", zone = "Asia/Kolkata")
+    void phoneRetention() {
+        try {
+            int deleted = deleteOldPhoneNumbers();
+            if (deleted > 0) {
+                log.info("Deleted the phone numbers of {} bookings past retention", deleted);
+            }
+        } catch (RuntimeException e) {
+            log.error("Phone retention job failed", e);
+        }
+    }
+
+    public int deleteOldPhoneNumbers() {
+        return bookings.deleteOldPhoneNumbers();
+    }
+
     @Scheduled(fixedDelayString = "${latestay.jobs.interval:15s}", initialDelayString = "${latestay.jobs.interval:15s}")
     void tick() {
         try {

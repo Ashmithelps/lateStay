@@ -5,6 +5,9 @@ import { Photo } from "./Photo";
 import { cx, focusRing } from "./ui";
 
 /** Mobile: swipeable photos with dots. Desktop (md+): one large photo and four small. */
+/** Same sizes in the mobile carousel and the desktop grid, so the first photo is preloaded once. */
+const FIRST_SIZES = "(min-width: 768px) 50vw, 100vw";
+
 export function PhotoCarousel({ photos, name }: { photos: string[]; name: string }) {
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -30,7 +33,7 @@ export function PhotoCarousel({ photos, name }: { photos: string[]; name: string
         >
           {photos.map((src, i) => (
             <div key={src} className="w-full shrink-0 snap-center" aria-roledescription="slide" aria-label={`Photo ${i + 1} of ${photos.length}`}>
-              <Photo src={src} alt={`${name}, photo ${i + 1}`} sizes="100vw" priority={i === 0} className="aspect-[20/19] w-full" />
+              <Photo src={src} alt={`${name}, photo ${i + 1}`} sizes={i === 0 ? FIRST_SIZES : "100vw"} priority={i === 0} className="aspect-[20/19] w-full" />
             </div>
           ))}
         </div>
@@ -58,7 +61,7 @@ export function PhotoCarousel({ photos, name }: { photos: string[]; name: string
             key={src}
             src={src}
             alt={`${name}, photo ${i + 1}`}
-            sizes={i === 0 ? "50vw" : "25vw"}
+            sizes={i === 0 ? FIRST_SIZES : "25vw"}
             priority={i === 0}
             className={cx("h-full w-full", i === 0 && "col-span-2 row-span-2")}
           />
