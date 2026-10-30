@@ -16,7 +16,10 @@ public class TestcontainersConfiguration {
     private static final DockerImageName POSTGIS_IMAGE =
             DockerImageName.parse("postgis/postgis:16-3.5").asCompatibleSubstituteFor("postgres");
 
-    static final PostgreSQLContainer<?> POSTGIS = new PostgreSQLContainer<>(POSTGIS_IMAGE);
+    // Spring caches many test contexts, each with its own connection pool, plus TwoInstancesIT starts two more
+    // apps: Postgres's default of 100 connections runs out on CI.
+    static final PostgreSQLContainer<?> POSTGIS = new PostgreSQLContainer<>(POSTGIS_IMAGE)
+            .withCommand("postgres", "-c", "max_connections=300");
 
     @Bean
     @ServiceConnection

@@ -61,6 +61,9 @@ tasks.test {
     useJUnitPlatform {
         excludeTags("llm")
     }
+    // Tests must not pick up a sourced backend/.env (the local profile, a real LLM key).
+    listOf("SPRING_PROFILES_ACTIVE", "LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL")
+        .forEach { environment.remove(it) }
 }
 
 // Live LLM tests: ./gradlew llmTest (needs LLM_PROVIDER and LLM_API_KEY; skipped otherwise).
