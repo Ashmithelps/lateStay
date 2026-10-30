@@ -153,4 +153,82 @@ class WhatsAppBookingIT extends WhatsAppItSupport {
         fixtures.book(agreed);
         assertThat(rows(agreed.hotel().id())).isEmpty();
     }
+
+    // Arrival check
+
+    Paid confirmed() throws Exception {
+        Paid p = paid();
+        owner(p, Action.CONFIRM);
+        return p;
+    }
+
+    @Test
+    void theArrivalCheckAsksTheOwnerAnHourAfterArriveBy() throws Exception {
+        Paid p = confirmed();
+        clock.set(java.time.Instant.parse("2026-11-11T20:00:00Z"));
+        jobs.sendArrivalChecks();
+        JsonNode check = rows(p.agreed().hotel().id()).stream().filter(r -> "arrival_check".equals(r.get("template")))
+                .map(r -> read(r.get("payload"))).findFirst().orElseThrow();
+        JsonNode components = check.path("template").path("components");
+        assertThat(components.get(0).path("parameters").get(0).path("text").asText()).isEqualTo("Asha Verma");
+        assertThat(components.get(0).path("parameters").get(1).path("text").asText()).isEqualTo(code(p));
+        assertThat(components.get(1).path("parameters").get(0).path("payload").asText())
+                .isEqualTo(OwnerReplyParser.arrivalPayload(p.created().bookingId(), true));
+        assertThat(components.get(2).path("parameters").get(0).path("payload").asText())
+                .isEqualTo(OwnerReplyParser.arrivalPayload(p.created().bookingId(), false));
+    }
+
+    @Test
+    void arrivedChecksTheGuestIn() throws Exception {
+        Paid p = confirmed();
+        tap(p.agreed().hotel(), OwnerReplyParser.arrivalPayload(p.created().bookingId(), true), "Arrived");
+        tap(p.agreed().hotel(), OwnerReplyParser.arrivalPayload(p.created().bookingId(), true), "Arrived");
+        assertThat(statusOf(p.created().bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
+        assertThat(events(p.created().bookingId())).filteredOn(e -> e.endsWith("CHECKED_IN by HOTEL")).hasSize(1);
+        assertThat(outboundTexts(p.agreed().hotel().id())).last().asString().isEqualTo("Already noted, thanks.");
+    }
+
+    @Test
+    void didntArriveIsANoShowAndTheCodeLaterStillChecksTheGuestIn() throws Exception {
+        Paid p = confirmed();
+        tap(p.agreed().hotel(), OwnerReplyParser.arrivalPayload(p.created().bookingId(), false), "Didn't arrive");
+        assertThat(statusOf(p.created().bookingId())).isEqualTo(BookingStatus.NO_SHOW);
+        assertThat(outboundTexts(p.agreed().hotel().id())).last().asString().contains("keep the ₹200 deposit");
+
+        say(p.agreed().hotel(), "code " + code(p));
+        assertThat(statusOf(p.created().bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
+        assertThat(outboundTexts(p.agreed().hotel().id())).last().asString()
+                .isEqualTo("Code " + code(p) + " is right: Asha Verma, 2 guests. Collect ₹800. Checked in.");
+    }
+
+    @Test
+    void typingTheCodeChecksInOnlyThisOwnersGuest() throws Exception {
+        Paid mine = confirmed();
+        Paid theirs = confirmed();
+        say(mine.agreed().hotel(), code(theirs));
+        assertThat(statusOf(theirs.created().bookingId())).isEqualTo(BookingStatus.HOTEL_CONFIRMED);
+        // Another hotel's code is not a desk code for this owner: just the help reply.
+        assertThat(outboundTexts(mine.agreed().hotel().id())).last().asString().isEqualTo(OwnerMessageHandler.HELP);
+        say(mine.agreed().hotel(), code(mine));
+        assertThat(statusOf(mine.created().bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
+    }
+
+    @Test
+    void aCodeOfASettledBookingIsNotADeskCode() throws Exception {
+        Paid p = confirmed();
+        say(p.agreed().hotel(), code(p));
+        assertThat(statusOf(p.created().bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
+        // Checked in already, so no longer active: the same digits now get the help reply.
+        say(p.agreed().hotel(), code(p));
+        assertThat(outboundTexts(p.agreed().hotel().id())).last().asString().isEqualTo(OwnerMessageHandler.HELP);
+    }
+
+    @Test
+    void anArrivalAnswerAfterTheBookingWasSettledChangesNothing() throws Exception {
+        Paid p = confirmed();
+        say(p.agreed().hotel(), code(p));
+        tap(p.agreed().hotel(), OwnerReplyParser.arrivalPayload(p.created().bookingId(), false), "Didn't arrive");
+        assertThat(statusOf(p.created().bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
+        assertThat(outboundTexts(p.agreed().hotel().id())).last().asString().startsWith("This booking has already been settled");
+    }
 }

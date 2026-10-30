@@ -12,8 +12,12 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param paymentWindow how long an unpaid booking holds its room
  * @param confirmWindow how long the hotel has to confirm after payment
  * @param arrivalGrace how long after the stated arrival the hotel holds the room (capped at the slot's window)
- * @param noShowAfter how long after arrive_by an unarrived guest is a no-show
  * @param phoneRetention how long after the stay the traveller's phone number is kept (privacy policy: 90 days)
+ * @param holdWindow how long an agreed price keeps a room set aside before booking
+ * @param arrivalCheckAfter how long after arrive_by the owner is asked whether the guest arrived
+ * @param autoCompleteMinimum least time the owner gets to answer the arrival check before auto-completion
+ * @param disputeHide how long "the hotel turned me away" hides the hotel from search, unless an admin keeps it
+ *     hidden
  */
 @ConfigurationProperties("latestay.booking")
 public record BookingProperties(
@@ -22,6 +26,9 @@ public record BookingProperties(
         @DefaultValue("10m") Duration paymentWindow,
         @DefaultValue("5m") Duration confirmWindow,
         @DefaultValue("60m") Duration arrivalGrace,
-        @DefaultValue("60m") Duration noShowAfter,
-        @DefaultValue("90d") Duration phoneRetention) {
+        @DefaultValue("90d") Duration phoneRetention,
+        @DefaultValue("10m") Duration holdWindow,
+        @DefaultValue("60m") Duration arrivalCheckAfter,
+        @DefaultValue("2h") Duration autoCompleteMinimum,
+        @DefaultValue("6h") Duration disputeHide) {
 }

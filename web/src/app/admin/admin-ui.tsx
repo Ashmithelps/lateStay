@@ -51,6 +51,8 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   REFUNDED: "Refunded",
   CANCELLED: "Cancelled",
   NO_SHOW: "No-show",
+  DISPUTED: "Disputed",
+  HOTEL_FAILED: "Hotel failed",
 };
 
 export function statusLabel(status: BookingStatus): string {

@@ -34,7 +34,8 @@ class LiveLlmTest {
     @BeforeAll
     static void connect() {
         llm = LlmConfig.create(new LlmProperties(System.getenv("LLM_PROVIDER"), System.getenv("LLM_MODEL"),
-                System.getenv("LLM_API_KEY"), System.getenv("LLM_BASE_URL"), Duration.ofSeconds(8)), RestClient.builder());
+                System.getenv("LLM_API_KEY"), System.getenv("LLM_BASE_URL"), Duration.ofSeconds(8), java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO), RestClient.builder());
     }
 
     private static void requireLlm() {

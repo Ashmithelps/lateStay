@@ -12,6 +12,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # Admin photo uploads: 10 MB a photo, several at once.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
 
 server:
   port: ${PORT:8080}
@@ -21,7 +26,7 @@ springdoc:
   api-docs:
     version: openapi_3_0
   paths-to-match: /api/**
-  paths-to-exclude: /api/admin/**, /api/dev/**
+  paths-to-exclude: /api/admin/**, /api/dev/**, /api/owner/**
 
 # Errors to Sentry when SENTRY_DSN is set (free tier). No personal data: see web.SentryConfig.
 sentry:
@@ -39,7 +44,13 @@ management:
         include: health
 
 latestay:
+  # local, staging or production (APP_ENV). Decides what the startup checks allow, e.g. seed data never in production.
+  environment: ${APP_ENV:local}
+  seed:
+    enabled: ${SEED_DATA:false}
   web-origin: ${WEB_ORIGIN:http://localhost:3000}
+  # Where links in WhatsApp messages point (booking pass, owner sign-in).
+  public-web-url: ${PUBLIC_WEB_URL:http://localhost:3000}
   admin:
     username: ${ADMIN_USERNAME:}
     password: ${ADMIN_PASSWORD:}
@@ -49,10 +60,47 @@ latestay:
     payment-window: 10m
     confirm-window: 5m
     arrival-grace: 60m
-    no-show-after: 60m
+    hold-window: 10m
+    arrival-check-after: 60m
+    auto-complete-minimum: 2h
+    dispute-hide: ${DISPUTE_HIDE_HOURS:6}h
   jobs:
     enabled: ${JOBS_ENABLED:true}
     interval: 15s
+  pricing:
+    # 2 = occupancy, weekend and season pricing; 1 = the engine's rules before it
+    version: ${PRICING_VERSION:2}
+    weekend-percent: ${PRICING_WEEKEND_PERCENT:110}
+  reliability:
+    min-decisions: ${RELIABILITY_MIN_DECISIONS:3}
+    min-confirm-rate-percent: ${RELIABILITY_MIN_CONFIRM_RATE:70}
+    max-strikes: ${RELIABILITY_MAX_STRIKES:2}
+  phone-verification:
+    secret: ${PHONE_VERIFICATION_SECRET:}
+    code-validity: 5m
+    max-attempts: 3
+    remember: 30d
+    cookie-secure: ${PHONE_COOKIE_SECURE:true}
+    template: phone_otp
+  photos:
+    imaging-url: ${IMAGING_URL:http://localhost:8081}
+    imaging-token: ${IMAGING_TOKEN:}
+    endpoint: ${R2_ENDPOINT:}
+    region: ${R2_REGION:auto}
+    bucket: ${R2_BUCKET:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    public-base-url: ${R2_PUBLIC_BASE_URL:}
+    # true for MinIO (local); R2 works either way.
+    path-style: ${R2_PATH_STYLE:false}
+  analytics:
+    posthog-api-key: ${POSTHOG_API_KEY:}
+    posthog-host: ${POSTHOG_HOST:https://eu.i.posthog.com}
+  owner:
+    secret: ${OWNER_SESSION_SECRET:}
+    link-validity: 15m
+    session: 30d
+    cookie-secure: ${OWNER_COOKIE_SECURE:true}
   rate-limit:
     enabled: true
     messages-per-session: 20
@@ -74,9 +122,19 @@ latestay:
     language: en
     send-interval: 5s
     ping-cron: "0 0 21 * * *"
+    admin-number: ${ADMIN_WHATSAPP_NUMBER:}
+    support-number: ${SUPPORT_WHATSAPP_NUMBER:}
+    rooms-template: ${WA_ROOMS_TEMPLATE:false}
   llm:
     provider: ${LLM_PROVIDER:none}
     model: ${LLM_MODEL:}
     api-key: ${LLM_API_KEY:}
     base-url: ${LLM_BASE_URL:}
     timeout: 8s
+    # From the provider's price page, US dollars per million tokens; 0 = cost not recorded.
+    price-input-per-mtok-usd: ${LLM_PRICE_INPUT_PER_MTOK_USD:0}
+    price-output-per-mtok-usd: ${LLM_PRICE_OUTPUT_PER_MTOK_USD:0}
+    # Replies fall back to templates once this month's recorded spend reaches it; 0 = no limit here.
+    monthly-budget-usd: ${LLM_MONTHLY_BUDGET_USD:0}
+    # For showing LLM cost in rupees (digest, /admin/today, /admin/funnel). Update it now and then.
+    usd-inr-rate: ${USD_INR_RATE:88}

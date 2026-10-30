@@ -5,6 +5,8 @@ import com.latestay.booking.BookingDtos.BookingPreview;
 import com.latestay.booking.BookingDtos.BookingView;
 import com.latestay.booking.BookingDtos.CreateBookingRequest;
 import com.latestay.booking.BookingDtos.VerifyPaymentRequest;
+import com.latestay.phone.PhoneCookies;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,15 +21,18 @@ class BookingController {
 
     private final BookingService bookings;
     private final BookingViews views;
+    private final PhoneCookies phoneCookies;
 
-    BookingController(BookingService bookings, BookingViews views) {
+    BookingController(BookingService bookings, BookingViews views, PhoneCookies phoneCookies) {
         this.bookings = bookings;
         this.views = views;
+        this.phoneCookies = phoneCookies;
     }
 
+    /** Needs this device's "phone verified" cookie for the same number (403 PHONE_NOT_VERIFIED otherwise). */
     @PostMapping("/api/bookings")
-    BookingCreated create(@Valid @RequestBody CreateBookingRequest request) {
-        return bookings.create(request);
+    BookingCreated create(@Valid @RequestBody CreateBookingRequest request, HttpServletRequest http) {
+        return bookings.create(request, phoneCookies.verifiedPhoneHash(http).orElse(null));
     }
 
     @GetMapping("/api/negotiations/{sessionId}/booking-preview")
@@ -49,6 +54,20 @@ class BookingController {
     @PostMapping("/api/bookings/{id}/cancel")
     BookingView cancel(@PathVariable UUID id) {
         bookings.cancel(id);
+        return views.view(id);
+    }
+
+    /** "I did arrive", after the hotel said the guest didn't. Once per booking. */
+    @PostMapping("/api/bookings/{id}/arrived")
+    BookingView arrived(@PathVariable UUID id) {
+        bookings.travellerArrived(id);
+        return views.view(id);
+    }
+
+    /** "The hotel turned me away", from the arrival time on. */
+    @PostMapping("/api/bookings/{id}/turned-away")
+    BookingView turnedAway(@PathVariable UUID id) {
+        bookings.turnedAway(id);
         return views.view(id);
     }
 }

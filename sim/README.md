@@ -18,6 +18,7 @@ Simulated travellers haggle with the backend through its public API only: `POST 
    make sim                  # LLM personas (needs ANTHROPIC_API_KEY in sim/.env)
    make sim N=50 ARGS="--persona-model claude-haiku-5-5 --concurrency 8"
    make sim-test             # unit tests + lint
+   make sim-compare N=400    # old vs new pricing on the same scenarios -> reports/pricing-compare.md
    ```
 
    Or directly: `cd sim && uv run latestay-sim --help`. uv installs Python 3.12 and the dependencies on first run.
@@ -43,3 +44,7 @@ The command exits with status 1 if there is any floor violation or reply-number 
 ## Cost
 
 With LLM personas, each traveller turn is one persona call: a default run is about 1,600 calls. Roughly $10-15 on `claude-opus-5-5` and under $0.50 on `claude-haiku-5-5`; the report shows the measured figure. Backend LLM cost is estimated from the token counts the backend reports, using `SIM_BACKEND_MODEL` prices from `src/latestay_sim/pricing.py`.
+
+## Pricing compare
+
+`--compare` runs each scenario twice, once under the engine's old rules (`pricingVersion` 1) and once under occupancy pricing (2), with the same persona, hidden budget and random seed, on a night with 1, 2, 4 or 8 of 10 rooms free and a weekday, weekend, peak or off-season demand. It writes `reports/pricing-compare.md` (kept in git) and `pricing-compare.csv`: deal rate, average agreed price and revenue per available room, overall and by occupancy, night and persona. With scripted personas the run is deterministic. The dev endpoint accepts `pricingVersion`, `roomsFree`, `totalRooms` and `demandPercent` for this.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/Button";
 import { TextField } from "@/components/Field";
 import { Wordmark } from "@/components/Wordmark";
@@ -10,20 +10,38 @@ import { adminApi, signIn, signOut, useAdminCredentials } from "@/lib/admin-api"
 import { BookingsBoard } from "./BookingsBoard";
 import { HotelsPanel } from "./HotelsPanel";
 import { NegotiationsPanel } from "./NegotiationsPanel";
+import { FunnelPanel } from "./FunnelPanel";
+import { PayoutsPanel } from "./PayoutsPanel";
+import { PromoPanel } from "./PromoPanel";
+import { QualityPanel } from "./QualityPanel";
+import { TodayPanel } from "./TodayPanel";
 
 const TABS = [
+  { id: "today", label: "Today" },
   { id: "bookings", label: "Bookings" },
   { id: "negotiations", label: "Negotiations" },
   { id: "hotels", label: "Hotels" },
+  { id: "payouts", label: "Payouts" },
+  { id: "funnel", label: "Funnel" },
+  { id: "promos", label: "Promos" },
+  { id: "quality", label: "Quality" },
 ] as const;
+/** These two have their own addresses: /admin/today and /admin/funnel. */
+const ROUTED: Tab[] = ["today", "funnel"];
 type Tab = (typeof TABS)[number]["id"];
 
 /** The admin panel. Every call is checked by the backend with HTTP basic auth. */
-export function AdminScreen() {
+export function AdminScreen({ route }: { route?: Tab }) {
   const credentials = useAdminCredentials();
   const params = useSearchParams();
   const router = useRouter();
-  const tab: Tab = TABS.some((t) => t.id === params.get("tab")) ? (params.get("tab") as Tab) : "bookings";
+  const tab: Tab = route ?? (TABS.some((t) => t.id === params.get("tab")) ? (params.get("tab") as Tab) : "bookings");
+
+  // On a phone the tabs scroll sideways: keep the current one in view.
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [tab, credentials]);
 
   if (!credentials) return <SignIn />;
   const api = adminApi(credentials);
@@ -36,13 +54,13 @@ export function AdminScreen() {
             <Wordmark />
             <span className="text-14 font-medium text-ink-secondary">Admin</span>
           </div>
-          <nav aria-label="Admin sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto no-scrollbar sm:order-none sm:w-auto">
+          <nav ref={nav} aria-label="Admin sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto no-scrollbar sm:order-none sm:w-auto">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 aria-current={tab === t.id ? "page" : undefined}
-                onClick={() => router.replace(`/admin?tab=${t.id}`)}
+                onClick={() => router.push(ROUTED.includes(t.id) ? `/admin/${t.id}` : `/admin?tab=${t.id}`)}
                 className={cx(
                   "min-h-11 shrink-0 border-b-2 px-3 text-14 font-semibold transition-colors",
                   tab === t.id ? "border-ink text-ink" : "border-transparent text-ink-secondary hover:text-ink",
@@ -66,6 +84,11 @@ export function AdminScreen() {
         {tab === "bookings" && <BookingsBoard api={api} />}
         {tab === "negotiations" && <NegotiationsPanel api={api} />}
         {tab === "hotels" && <HotelsPanel api={api} />}
+        {tab === "payouts" && <PayoutsPanel api={api} />}
+        {tab === "today" && <TodayPanel api={api} />}
+        {tab === "funnel" && <FunnelPanel api={api} />}
+        {tab === "promos" && <PromoPanel api={api} />}
+        {tab === "quality" && <QualityPanel api={api} />}
       </main>
     </div>
   );

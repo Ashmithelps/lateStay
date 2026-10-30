@@ -33,10 +33,10 @@ export function isLateNight(arrive: string): boolean {
   return m >= toMinutes("21:00") || m <= toMinutes("03:00");
 }
 
-/** Leave times from one hour after arrival up to the slot's leave-by time. */
+/** Leave times on the half hour, from one hour after arrival up to the slot's leave-by time. */
 export function leaveTimes(arrive: string): string[] {
   const leaveBy = isLateNight(arrive) ? "10:00" : "14:00";
-  return range(toTime(toMinutes(arrive) + 60), leaveBy);
+  return range(toTime(Math.ceil((toMinutes(arrive) + 60) / 30) * 30), leaveBy);
 }
 
 /** A leave time valid for this arrival: the given one if allowed, else the closest allowed one. */

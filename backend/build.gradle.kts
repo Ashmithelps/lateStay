@@ -28,6 +28,12 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.60.0")
     implementation("io.sentry:sentry-logback:8.60.0")
+    // Hotel photos in S3-compatible storage (Cloudflare R2 by default).
+    implementation(platform("software.amazon.awssdk:bom:2.39.6"))
+    implementation("software.amazon.awssdk:s3")
+    // One run per scheduled job across instances (deploy overlap, future scaling).
+    implementation("net.javacrumbs.shedlock:shedlock-spring:6.9.2")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.9.2")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")

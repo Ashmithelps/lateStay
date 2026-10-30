@@ -8,6 +8,7 @@ import type { AdminApi, AdminFloorRule, AdminHotel, AdminRoomType, FloorRuleBody
 import { amenity, AMENITY_CODES } from "@/lib/amenities";
 import { formatDay, formatPrice } from "@/lib/format";
 import { inputClass, LabelledInput, PanelMessage, SmallButton } from "./admin-ui";
+import { PhotoManager } from "./PhotoManager";
 import { WhatsAppLog } from "./WhatsAppLog";
 
 /** Hotels with tonight's rooms-free stepper on the left; the selected hotel's details, rooms and floor rules on the right. */
@@ -19,6 +20,7 @@ export function HotelsPanel({ api }: { api: AdminApi }) {
   if (!hotels.data) return <PanelMessage>{hotels.error?.message ?? "Loading hotels…"}</PanelMessage>;
   const current = hotels.data.find((h) => h.id === (selected ?? hotels.data[0]?.id));
   const free = new Map(tonight.data?.hotels.map((h) => [h.hotelId, h.roomsFree]) ?? []);
+  const rows = new Map(tonight.data?.hotels.map((h) => [h.hotelId, h]) ?? []);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
@@ -44,6 +46,10 @@ export function HotelsPanel({ api }: { api: AdminApi }) {
                 <span className="block truncate text-12 text-ink-secondary">
                   {h.town}
                   {!h.active && " · inactive"}
+                  {rows.get(h.id) && rows.get(h.id)!.available !== (free.get(h.id) ?? 0) &&
+                    ` · ${rows.get(h.id)!.available} sellable`}
+                  {(rows.get(h.id)?.reliabilityFailures ?? 0) > 0 &&
+                    ` · ${rows.get(h.id)!.reliabilityFailures} failed`}
                 </span>
               </button>
               {tonight.data && <RoomsFree api={api} hotel={h} nightOf={tonight.data.nightOf} value={free.get(h.id) ?? 0} />}
@@ -54,6 +60,7 @@ export function HotelsPanel({ api }: { api: AdminApi }) {
       {current && (
         <section aria-label={`Edit ${current.name}`} className="min-w-0">
           <HotelForm key={current.id} api={api} hotel={current} />
+          <PhotoManager key={`photos-${current.id}`} api={api} hotel={current} />
           <WhatsAppLog key={`wa-${current.id}`} api={api} hotel={current} />
           <RoomTypes key={`rooms-${current.id}`} api={api} hotel={current} />
         </section>
@@ -95,8 +102,9 @@ function HotelForm({ api, hotel }: { api: AdminApi; hotel: AdminHotel }) {
   const [draft, setDraft] = useState(hotel);
   const save = useMutation({
     mutationFn: () => {
-      const { id: _id, ...body } = draft;
+      const { id: _id, photos: _photos, ...body } = draft;
       void _id;
+      void _photos;
       return api.updateHotel(hotel.id, body);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "hotels"] }),
@@ -125,13 +133,12 @@ function HotelForm({ api, hotel }: { api: AdminApi; hotel: AdminHotel }) {
         <LabelledInput label="Town" value={draft.town} onChange={(e) => field("town", e.target.value)} required />
         <LabelledInput label="WhatsApp number" value={draft.whatsappNumber} onChange={(e) => field("whatsappNumber", e.target.value)} />
         <LabelledInput
-          label="Rating"
+          label="Rooms in all"
           type="number"
-          step="0.1"
-          min="0"
-          max="5"
-          value={draft.rating ?? ""}
-          onChange={(e) => field("rating", e.target.value === "" ? null : Number(e.target.value))}
+          min="1"
+          max="500"
+          value={draft.totalRooms}
+          onChange={(e) => field("totalRooms", Number(e.target.value))}
         />
         <LabelledInput label="Address" className="sm:col-span-2" value={draft.address} onChange={(e) => field("address", e.target.value)} />
         <LabelledInput label="Latitude" type="number" step="any" value={draft.lat} onChange={(e) => field("lat", Number(e.target.value))} />

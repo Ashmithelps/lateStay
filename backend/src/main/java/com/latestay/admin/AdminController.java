@@ -73,7 +73,8 @@ class AdminController {
     @PutMapping("/hotels/{id}")
     @Transactional
     HotelView updateHotel(@PathVariable UUID id, @Valid @RequestBody HotelBody body) {
-        if (!hotels.update(id, body.toHotel())) {
+        // Without "photos" the hotel's photos (managed under /photos) are left as they are.
+        if (!hotels.update(id, body.toHotel(), body.photos() != null)) {
             throw new NotFoundException("hotel", id);
         }
         return hotel(id);

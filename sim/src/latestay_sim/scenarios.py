@@ -17,11 +17,22 @@ SLOT_ARRIVALS = (
 
 
 @dataclass(frozen=True)
+class Pricing:
+    """The engine's pricing inputs for a session: version 1 ignores the rest (the rules before occupancy pricing)."""
+
+    version: int
+    rooms_free: int = 1
+    total_rooms: int = 10
+    demand_percent: int = 100
+
+
+@dataclass(frozen=True)
 class Scenario:
     list_price: int
     floor_percent: int
     slot_type: str
     arrival: str
+    pricing: Pricing | None = None
 
     @property
     def floor_price(self) -> int:

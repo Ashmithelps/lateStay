@@ -53,7 +53,7 @@ class AdminApiIT {
                 {"name": "Admin Test Inn", "slug": "%s", "town": "Testpur", "address": "1 Ridge Road",
                  "lat": %s, "lng": %s, "whatsappNumber": "+91 90000 12345", "amenities": ["heater", "parking"],
                  "policies": {"coupleFriendly": true, "localIdOk": false, "checkInNotes": "Ring twice"},
-                 "rating": 4.3, "photos": ["/seed/a.png", "/seed/b.png"]}""".formatted(slug, lat, LNG);
+                 "totalRooms": 8, "photos": ["/seed/a.png", "/seed/b.png"]}""".formatted(slug, lat, LNG);
     }
 
     @Test

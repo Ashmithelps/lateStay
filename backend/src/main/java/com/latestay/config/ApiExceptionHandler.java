@@ -53,6 +53,49 @@ class ApiExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(com.latestay.phone.PhoneNotVerifiedException.class)
+    ProblemDetail phoneNotVerified(com.latestay.phone.PhoneNotVerifiedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setProperty("code", "PHONE_NOT_VERIFIED");
+        return problem;
+    }
+
+    @ExceptionHandler(com.latestay.owner.OwnerNotSignedInException.class)
+    ProblemDetail ownerNotSignedIn(com.latestay.owner.OwnerNotSignedInException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
+        problem.setProperty("code", "OWNER_NOT_SIGNED_IN");
+        return problem;
+    }
+
+    @ExceptionHandler(com.latestay.photo.PhotoRejectedException.class)
+    ProblemDetail photoRejected(com.latestay.photo.PhotoRejectedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(e.status()), e.getMessage());
+        problem.setProperty("code", e.code());
+        return problem;
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ProblemDetail uploadTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE,
+                "Photos can be up to 10 MB each. Upload fewer at once if several are large.");
+        problem.setProperty("code", "TOO_LARGE");
+        return problem;
+    }
+
+    @ExceptionHandler(com.latestay.share.StayShareGoneException.class)
+    ProblemDetail shareGone(com.latestay.share.StayShareGoneException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.GONE, e.getMessage());
+        problem.setProperty("reason", e.reason().name());
+        return problem;
+    }
+
+    @ExceptionHandler(com.latestay.promo.PromoRejectedException.class)
+    ProblemDetail promoRejected(com.latestay.promo.PromoRejectedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setProperty("code", e.code());
+        return problem;
+    }
+
     @ExceptionHandler(PaymentGatewayException.class)
     ProblemDetail gateway(PaymentGatewayException e) {
         log.warn("Payment gateway error: {}", e.getMessage());

@@ -31,7 +31,8 @@ class DevNegotiationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     SessionResponse create(@Valid @RequestBody CreateNegotiationRequest request) {
-        PricingPolicy policy = PricingPolicy.of(request.listPrice(), request.floorPrice(), request.slotType());
+        PricingPolicy policy = PricingPolicy.of(request.listPrice(), request.floorPrice(), request.slotType(),
+                request.context());
         return SessionResponse.from(devSessions.create(policy, request.arrival()));
     }
 

@@ -8,12 +8,23 @@ spring:
 
 # Without Razorpay test keys, payments go through FakeRazorpayGateway and /api/dev/payments.
 latestay:
+  environment: local
+  seed:
+    enabled: true
   razorpay:
     allow-fake: true
   # The simulator sends hundreds of chat messages from one IP; the per-session limit still applies.
+  # http://localhost: the phone cookie can't be Secure.
+  phone-verification:
+    cookie-secure: false
+  owner:
+    cookie-secure: false
   rate-limit:
     messages-per-ip: 100000
     negotiations-per-ip: 100000
+    # The screenshot run verifies dozens of numbers from 127.0.0.1; per-number limits still apply.
+    codes-per-ip-per-hour: 100000
+    code-checks-per-ip-per-hour: 100000
 
 logging:
   level:

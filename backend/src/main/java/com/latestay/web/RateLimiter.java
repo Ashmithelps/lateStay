@@ -29,6 +29,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class RateLimiter implements HandlerInterceptor {
 
     private static final Pattern MESSAGE = Pattern.compile("^/api/negotiations/([^/]+)/(?:messages|accept)$");
+    private static final Pattern CODE_CHECK = Pattern.compile("^/api/phone-verifications/[^/]+/check$");
 
     private final RateLimitProperties limits;
     private final Cache<String, Bucket> buckets = Caffeine.newBuilder()
@@ -57,6 +58,15 @@ public class RateLimiter implements HandlerInterceptor {
             checks = List.of(new Limit("open-ip:" + ip, limits.negotiationsPerIp()));
         } else if (path.equals("/api/bookings")) {
             checks = List.of(new Limit("book-ip:" + ip, limits.bookingsPerIp()));
+        } else if (path.equals("/api/phone-verifications")) {
+            checks = List.of(new Limit("code-ip:" + ip, limits.codesPerIpPerHour(), Duration.ofHours(1)));
+        } else if (path.equals("/api/events") || path.endsWith("/attribution") || path.endsWith("/review")
+                || path.endsWith("/share")) {
+            checks = List.of(new Limit("events-ip:" + ip, limits.eventsPerIp()));
+        } else if (path.equals("/api/owner/session")) {
+            checks = List.of(new Limit("owner-ip:" + ip, limits.ownerSignInsPerIpPerHour(), Duration.ofHours(1)));
+        } else if (CODE_CHECK.matcher(path).matches()) {
+            checks = List.of(new Limit("check-ip:" + ip, limits.codeChecksPerIpPerHour(), Duration.ofHours(1)));
         } else {
             return true;
         }
@@ -80,13 +90,16 @@ public class RateLimiter implements HandlerInterceptor {
         return false;
     }
 
-    private record Limit(String key, long perMinute) {
+    private record Limit(String key, long perPeriod, Duration period) {
+        Limit(String key, long perMinute) {
+            this(key, perMinute, Duration.ofMinutes(1));
+        }
     }
 
     private Bucket bucket(Limit limit) {
         return buckets.get(limit.key(), key -> Bucket.builder()
-                .addLimit(Bandwidth.builder().capacity(limit.perMinute())
-                        .refillGreedy(limit.perMinute(), Duration.ofMinutes(1)).build())
+                .addLimit(Bandwidth.builder().capacity(limit.perPeriod())
+                        .refillGreedy(limit.perPeriod(), limit.period()).build())
                 .build());
     }
 }

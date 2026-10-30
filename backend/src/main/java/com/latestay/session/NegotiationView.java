@@ -17,7 +17,8 @@ public record NegotiationView(UUID id, SessionStatus status, long currentOffer, 
     public record HotelSummary(UUID id, String slug, String name, String town, @Schema(nullable = true) String photo) {
     }
 
-    public record RoomSummary(UUID id, String name) {
+    /** @param name "Deluxe", or "Deluxe + Standard" for two rooms negotiated together */
+    public record RoomSummary(UUID id, String name, int rooms) {
     }
 
     /** @param role TRAVELLER or BOT */

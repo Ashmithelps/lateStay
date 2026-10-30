@@ -22,6 +22,12 @@ final class Prices {
         return STEP_PERCENTS[Math.min(round, STEP_PERCENTS.length) - 1];
     }
 
+    /** As {@link #stepPercent(int)}, halved (rounded up) when the hotel's rooms are scarce: 20, 13, 8, 5. */
+    static int stepPercent(int round, PricingContext context) {
+        int percent = stepPercent(round);
+        return context.scarce() ? (percent + 1) / 2 : percent;
+    }
+
     /**
      * The next offer after conceding {@code percent}% of the gap between the current offer and
      * {@code target}. Rounded up, at least one {@code roundTo} lower than the current offer, never

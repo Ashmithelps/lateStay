@@ -33,15 +33,17 @@ public interface ConversationRepository {
      * A turn to persist. Traveller turns carry the parsed intent; bot turns carry the engine's decision (null for
      * questions, which don't consult the engine), how the reply was produced and the processing time.
      */
+    /** @param spend the LLM calls made for this turn (bot turns only; null otherwise) */
     record NewTurn(ChatMessage.Sender role, String text, Intent intent, EngineDecision decision,
-            String validatorResult, Integer latencyMs) {
+            String validatorResult, Integer latencyMs, com.latestay.conversation.llm.LlmSpend.TurnSpend spend) {
 
         public static NewTurn traveller(String text, Intent intent) {
-            return new NewTurn(ChatMessage.Sender.TRAVELLER, text, intent, null, null, null);
+            return new NewTurn(ChatMessage.Sender.TRAVELLER, text, intent, null, null, null, null);
         }
 
-        public static NewTurn bot(String text, EngineDecision decision, String validatorResult, int latencyMs) {
-            return new NewTurn(ChatMessage.Sender.HOTEL, text, null, decision, validatorResult, latencyMs);
+        public static NewTurn bot(String text, EngineDecision decision, String validatorResult, int latencyMs,
+                com.latestay.conversation.llm.LlmSpend.TurnSpend spend) {
+            return new NewTurn(ChatMessage.Sender.HOTEL, text, null, decision, validatorResult, latencyMs, spend);
         }
     }
 }

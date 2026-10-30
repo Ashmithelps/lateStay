@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { PageHeader } from "./PageHeader";
 
@@ -21,11 +22,20 @@ export function LegalFooter() {
   return (
     <footer className="mx-auto flex max-w-[1440px] flex-wrap gap-x-6 gap-y-2 px-4 pb-8 pt-6 text-14 text-ink-secondary sm:px-6 lg:px-10">
       <span>LateStay</span>
+      <Link href="/towns" className="underline-offset-4 hover:underline">
+        Towns
+      </Link>
       <a href="/privacy" className="underline-offset-4 hover:underline">
         Privacy
       </a>
       <a href="/terms" className="underline-offset-4 hover:underline">
         Terms
+      </a>
+      <a href="/refund-policy" className="underline-offset-4 hover:underline">
+        Refund policy
+      </a>
+      <a href="/contact" className="underline-offset-4 hover:underline">
+        Contact
       </a>
     </footer>
   );

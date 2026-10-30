@@ -60,16 +60,16 @@ public class WhatsAppMessageRepository {
 
     /** Queues an outbound message; false if one with this dedupe key was already queued. */
     public boolean queue(UUID hotelId, String waId, String type, String template, String payload, UUID bookingId,
-            String dedupeKey, Instant now) {
+            String dedupeKey, Instant now, String audience) {
         return jdbc.sql("""
                         INSERT INTO whatsapp_message (direction, hotel_id, wa_id, type, template, payload, status,
-                               booking_id, dedupe_key, created_at, updated_at)
+                               booking_id, dedupe_key, created_at, updated_at, audience)
                         VALUES ('OUT', :hotel, :wa, :type, :template, CAST(:payload AS jsonb), 'QUEUED', :booking,
-                                :dedupe, :now, :now)
+                                :dedupe, :now, :now, :audience)
                         ON CONFLICT (dedupe_key) DO NOTHING""")
                 .param("hotel", hotelId).param("wa", waId).param("type", type).param("template", template)
                 .param("payload", payload).param("booking", bookingId).param("dedupe", dedupeKey)
-                .param("now", at(now))
+                .param("now", at(now)).param("audience", audience)
                 .update() == 1;
     }
 
@@ -84,7 +84,12 @@ public class WhatsAppMessageRepository {
     public void sent(long id, String waMessageId, Instant now) {
         jdbc.sql("""
                         UPDATE whatsapp_message SET status = 'SENT', wa_message_id = :wamid,
-                               attempts = attempts + 1, error = NULL, updated_at = :now
+                               attempts = attempts + 1, error = NULL, updated_at = :now,
+                               -- An owner sign-in link is a credential: once sent, keep only a redacted copy.
+                               payload = CASE WHEN payload::text LIKE '%/owner/login?t=%'
+                                   THEN regexp_replace(payload::text, '(/owner/login[?]t=)[A-Za-z0-9_-]+',
+                                                       '\\1[redacted]', 'g')::jsonb
+                                   ELSE payload END
                         WHERE id = :id""")
                 .param("id", id).param("wamid", waMessageId).param("now", at(now)).update();
     }

@@ -17,7 +17,7 @@ public class HotelRepository {
 
     private static final String SELECT = """
             SELECT id, name, slug, town, address, ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng,
-                   whatsapp_number, amenities, policies::text AS policies, rating, active
+                   whatsapp_number, amenities, policies::text AS policies, total_rooms, active
             FROM hotel""";
 
     private final JdbcClient jdbc;
@@ -45,9 +45,9 @@ public class HotelRepository {
     public Hotel insert(Hotel hotel) {
         UUID id = jdbc.sql("""
                         INSERT INTO hotel (name, slug, town, address, location, whatsapp_number, amenities, policies,
-                                           rating, active)
+                                           total_rooms, active)
                         VALUES (:name, :slug, :town, :address, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
-                                :whatsapp, :amenities, CAST(:policies AS jsonb), :rating, :active)
+                                :whatsapp, :amenities, CAST(:policies AS jsonb), :totalRooms, :active)
                         RETURNING id""")
                 .params(writeParams(hotel))
                 .query(UUID.class).single();
@@ -57,19 +57,26 @@ public class HotelRepository {
 
     /** @return false if no hotel has this id */
     public boolean update(UUID id, Hotel hotel) {
+        return update(id, hotel, true);
+    }
+
+    /** @param withPhotos replace the photos with hotel.photos(); false leaves them as they are */
+    public boolean update(UUID id, Hotel hotel, boolean withPhotos) {
         Map<String, Object> params = writeParams(hotel);
         params.put("id", id);
         int updated = jdbc.sql("""
                         UPDATE hotel SET name = :name, slug = :slug, town = :town, address = :address,
                                location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
                                whatsapp_number = :whatsapp, amenities = :amenities, policies = CAST(:policies AS jsonb),
-                               rating = :rating, active = :active, updated_at = now()
+                               total_rooms = :totalRooms, active = :active, updated_at = now()
                         WHERE id = :id""")
                 .params(params).update();
         if (updated == 0) {
             return false;
         }
-        replacePhotos(id, hotel.photos());
+        if (withPhotos) {
+            replacePhotos(id, hotel.photos());
+        }
         return true;
     }
 
@@ -110,14 +117,14 @@ public class HotelRepository {
         params.put("whatsapp", hotel.whatsappNumber());
         params.put("amenities", hotel.amenities().toArray(String[]::new));
         params.put("policies", Json.write(hotel.policies().toJson()));
-        params.put("rating", hotel.rating());
+        params.put("totalRooms", hotel.totalRooms());
         params.put("active", hotel.active());
         return params;
     }
 
     private static Hotel withPhotos(Hotel hotel, Map<UUID, List<String>> photos) {
         return new Hotel(hotel.id(), hotel.name(), hotel.slug(), hotel.town(), hotel.address(), hotel.lat(),
-                hotel.lng(), hotel.whatsappNumber(), hotel.amenities(), hotel.policies(), hotel.rating(),
+                hotel.lng(), hotel.whatsappNumber(), hotel.amenities(), hotel.policies(), hotel.totalRooms(),
                 hotel.active(), photos.getOrDefault(hotel.id(), List.of()));
     }
 
@@ -138,7 +145,7 @@ public class HotelRepository {
                 rs.getString("whatsapp_number"),
                 textArray(rs, "amenities"),
                 HotelPolicies.fromJson(Json.readMap(rs.getString("policies"))),
-                rs.getBigDecimal("rating"),
+                rs.getInt("total_rooms"),
                 rs.getBoolean("active"),
                 List.of());
     }

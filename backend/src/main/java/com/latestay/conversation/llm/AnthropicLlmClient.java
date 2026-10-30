@@ -74,4 +74,9 @@ public class AnthropicLlmClient implements LlmClient {
         JsonNode usage = response.path("usage");
         return new LlmResponse(text.toString(), usage.path("input_tokens").asLong(0), usage.path("output_tokens").asLong(0));
     }
+
+    @Override
+    public String model() {
+        return model;
+    }
 }

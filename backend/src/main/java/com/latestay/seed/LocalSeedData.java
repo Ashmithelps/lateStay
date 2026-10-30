@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  * availability for tonight and tomorrow night so search always has something to find.
  */
 @Component
-@Profile("local")
+// Local and staging only (application-local.yml, application-staging.yml); production refuses to start with it.
+@ConditionalOnProperty("latestay.seed.enabled")
 class LocalSeedData implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(LocalSeedData.class);
@@ -47,7 +48,7 @@ class LocalSeedData implements ApplicationRunner {
     }
 
     record SeedHotel(String slug, String name, String town, String address, double lat, double lng, String whatsapp,
-            BigDecimal rating, List<Integer> roomsFree, List<String> amenities, SeedPolicies policies,
+            int totalRooms, List<Integer> roomsFree, List<String> amenities, SeedPolicies policies,
             List<SeedRoom> rooms) {
     }
 
@@ -103,7 +104,7 @@ class LocalSeedData implements ApplicationRunner {
         Hotel hotel = hotels.insert(new Hotel(null, s.name(), s.slug(), s.town(), s.address(), s.lat(), s.lng(),
                 s.whatsapp(), s.amenities(),
                 new HotelPolicies(s.policies().coupleFriendly(), s.policies().localIdOk(), s.policies().checkInNotes()),
-                s.rating(), true, photos));
+                s.totalRooms(), true, photos));
         for (SeedRoom r : s.rooms()) {
             RoomType room = roomTypes.insert(hotel.id(), r.name(), r.listPrice(), r.maxGuests());
             for (SlotType slot : SlotType.values()) {

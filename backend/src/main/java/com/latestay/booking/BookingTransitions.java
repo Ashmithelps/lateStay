@@ -4,9 +4,11 @@ import static com.latestay.booking.BookingStatus.CANCELLED;
 import static com.latestay.booking.BookingStatus.CHECKED_IN;
 import static com.latestay.booking.BookingStatus.COMPLETED;
 import static com.latestay.booking.BookingStatus.DEPOSIT_PAID;
+import static com.latestay.booking.BookingStatus.DISPUTED;
 import static com.latestay.booking.BookingStatus.EXPIRED;
 import static com.latestay.booking.BookingStatus.HOTEL_CONFIRMED;
 import static com.latestay.booking.BookingStatus.HOTEL_DECLINED;
+import static com.latestay.booking.BookingStatus.HOTEL_FAILED;
 import static com.latestay.booking.BookingStatus.HOTEL_TIMEOUT;
 import static com.latestay.booking.BookingStatus.NO_SHOW;
 import static com.latestay.booking.BookingStatus.PENDING_PAYMENT;
@@ -28,12 +30,20 @@ public final class BookingTransitions {
             LEGAL.put(status, EnumSet.noneOf(BookingStatus.class));
         }
         allow(PENDING_PAYMENT, DEPOSIT_PAID, EXPIRED, CANCELLED);
-        allow(DEPOSIT_PAID, HOTEL_CONFIRMED, HOTEL_DECLINED, HOTEL_TIMEOUT, CANCELLED);
+        allow(DEPOSIT_PAID, HOTEL_CONFIRMED, HOTEL_DECLINED, HOTEL_TIMEOUT, CANCELLED, HOTEL_FAILED);
         allow(HOTEL_DECLINED, REFUNDED);
         allow(HOTEL_TIMEOUT, REFUNDED);
         allow(CANCELLED, REFUNDED);
-        allow(HOTEL_CONFIRMED, CHECKED_IN, NO_SHOW);
-        allow(CHECKED_IN, COMPLETED);
+        // Owner: Arrived / the code (CHECKED_IN), Didn't arrive (NO_SHOW). Job: nobody answered (COMPLETED).
+        // Traveller: turned away (DISPUTED). Admin: Rescue (HOTEL_FAILED).
+        allow(HOTEL_CONFIRMED, CHECKED_IN, NO_SHOW, COMPLETED, DISPUTED, HOTEL_FAILED);
+        allow(CHECKED_IN, COMPLETED, HOTEL_FAILED);
+        // Owner types the code after all (CHECKED_IN); traveller "I did arrive", once (DISPUTED).
+        allow(NO_SHOW, CHECKED_IN, DISPUTED, HOTEL_FAILED);
+        // Admin settles: guest stayed (COMPLETED), guest didn't arrive (NO_SHOW, final), Rescue (HOTEL_FAILED).
+        allow(DISPUTED, COMPLETED, NO_SHOW, HOTEL_FAILED);
+        // Admin Rescue the morning after, when nobody answered and the booking completed on its own.
+        allow(COMPLETED, HOTEL_FAILED);
     }
 
     private BookingTransitions() {

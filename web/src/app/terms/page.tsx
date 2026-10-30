@@ -30,6 +30,9 @@ export default function TermsPage() {
         <h2>Paying and booking</h2>
         <ul>
           <li>
+            Before paying, you confirm your mobile number with a code we send on WhatsApp.
+          </li>
+          <li>
             You pay a deposit online: ₹200, or the whole price if it&apos;s less than that. You pay the rest at the hotel&apos;s
             desk.
           </li>
@@ -46,10 +49,18 @@ export default function TermsPage() {
         <h2>Cancelling and arriving late</h2>
         <ul>
           <li>You can cancel for a full refund until the hotel confirms.</li>
-          <li>Once the hotel has confirmed, the room is held for you and the booking can&apos;t be cancelled in the app.</li>
+          <li>Once the hotel has confirmed, the room is held for you and the deposit is non-refundable.</li>
           <li>
-            The hotel holds the room until the &quot;arrive by&quot; time on your pass. If you haven&apos;t checked in an hour
-            after that, the booking is marked as a no-show and the hotel keeps the deposit.
+            The hotel holds the room until the &quot;arrive by&quot; time on your pass. An hour after that we ask the
+            hotel whether you arrived. If it says you didn&apos;t, the hotel keeps the deposit; if you did arrive, tell
+            us from your pass (once) and we&apos;ll settle it with the hotel.
+          </li>
+          <li>
+            If the hotel turns you away, tell us from your pass or on WhatsApp: you get the deposit back at once and
+            we&apos;ll show you places with rooms free.
+          </li>
+          <li>
+            The full rules are in the <a href="/refund-policy">refund policy</a>.
           </li>
         </ul>
       </section>

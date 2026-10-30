@@ -9,12 +9,22 @@ import { formatIndianMobile } from "@/lib/phone";
 import { inputClass, PanelMessage, SmallButton, statusLabel, StatusTag } from "./admin-ui";
 
 const COLUMNS: { title: string; statuses: BookingStatus[] }[] = [
+  { title: "Disputes", statuses: ["DISPUTED"] },
   { title: "Needs confirmation", statuses: ["DEPOSIT_PAID"] },
   { title: "Awaiting payment", statuses: ["PENDING_PAYMENT"] },
   { title: "Confirmed", statuses: ["HOTEL_CONFIRMED", "CHECKED_IN"] },
   {
     title: "Closed",
-    statuses: ["COMPLETED", "REFUNDED", "HOTEL_DECLINED", "HOTEL_TIMEOUT", "CANCELLED", "EXPIRED", "NO_SHOW"],
+    statuses: [
+      "COMPLETED",
+      "REFUNDED",
+      "HOTEL_DECLINED",
+      "HOTEL_TIMEOUT",
+      "CANCELLED",
+      "EXPIRED",
+      "NO_SHOW",
+      "HOTEL_FAILED",
+    ],
   },
 ];
 
@@ -27,12 +37,15 @@ export function BookingsBoard({ api }: { api: AdminApi }) {
   if (!bookings.data) return <PanelMessage>{bookings.error?.message ?? "Couldn't load bookings."}</PanelMessage>;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
       {COLUMNS.map((column) => {
         const rows = bookings.data.filter((b) => column.statuses.includes(b.status));
         return (
           <section key={column.title} aria-labelledby={`col-${column.title}`} className="min-w-0 overflow-hidden">
-            <h2 id={`col-${column.title}`} className="flex items-baseline justify-between border-b border-ink pb-2 text-14 font-semibold text-ink">
+            <h2
+              id={`col-${column.title}`}
+              className="flex items-baseline justify-between border-b border-ink pb-2 text-14 font-semibold text-ink"
+            >
               {column.title}
               <span className="text-12 font-medium text-ink-secondary tabular-nums">{rows.length}</span>
             </h2>
@@ -68,35 +81,73 @@ function countdown(until: string, now: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/** Rescue: the hotel let the traveller down (refund now, counts against the hotel). */
+const RESCUABLE: BookingStatus[] = [
+  "DEPOSIT_PAID",
+  "HOTEL_CONFIRMED",
+  "CHECKED_IN",
+  "NO_SHOW",
+  "DISPUTED",
+  "COMPLETED",
+];
+
 function BookingRow({ b, api, now, showStatus }: { b: AdminBooking; api: AdminApi; now: number; showStatus: boolean }) {
   const queryClient = useQueryClient();
   const [code, setCode] = useState("");
+  const [rescuing, setRescuing] = useState(false);
   const act = useMutation({
-    mutationFn: (action: "confirm" | "decline" | "check-in") =>
-      action === "confirm" ? api.confirm(b.id) : action === "decline" ? api.decline(b.id) : api.checkIn(b.id, code),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] }),
+    mutationFn: (action: "confirm" | "decline" | "check-in" | "stayed" | "not-arrived" | "rescue" | "keep-hidden") => {
+      switch (action) {
+        case "confirm":
+          return api.confirm(b.id);
+        case "decline":
+          return api.decline(b.id);
+        case "stayed":
+          return api.settle(b.id, "GUEST_STAYED");
+        case "not-arrived":
+          return api.settle(b.id, "GUEST_DID_NOT_ARRIVE");
+        case "rescue":
+          return api.rescue(b.id);
+        case "keep-hidden":
+          return api.keepHidden(b.id);
+        default:
+          return api.checkIn(b.id, code);
+      }
+    },
+    onSettled: () => {
+      setRescuing(false);
+      void queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+    },
   });
+  const canRescue = RESCUABLE.includes(b.status);
 
-  const tone = b.status === "HOTEL_CONFIRMED" || b.status === "CHECKED_IN" || b.status === "COMPLETED"
-    ? "pine"
-    : b.status === "HOTEL_DECLINED" || b.status === "HOTEL_TIMEOUT" || b.status === "NO_SHOW"
-      ? "error"
-      : "neutral";
+  const tone =
+    b.status === "HOTEL_CONFIRMED" || b.status === "CHECKED_IN" || b.status === "COMPLETED"
+      ? "pine"
+      : ["HOTEL_DECLINED", "HOTEL_TIMEOUT", "NO_SHOW", "DISPUTED", "HOTEL_FAILED"].includes(b.status)
+        ? "error"
+        : "neutral";
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2 py-3 text-14">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-semibold text-ink">{b.guestName}</p>
-          <p className="truncate text-ink-secondary">{b.hotelName} · {b.roomType}</p>
+          <p className="truncate text-ink-secondary">
+            {b.hotelName} · {b.roomType}
+          </p>
         </div>
         {showStatus && <StatusTag tone={tone}>{statusLabel(b.status)}</StatusTag>}
       </div>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-ink-secondary tabular-nums">
         <dt>Arrive</dt>
-        <dd className="text-ink">{formatTime(b.arriveAt)} {formatDay(b.arriveAt)} (by {formatTime(b.arriveBy)})</dd>
+        <dd className="text-ink">
+          {formatTime(b.arriveAt)} {formatDay(b.arriveAt)} (by {formatTime(b.arriveBy)})
+        </dd>
         <dt>Guests</dt>
-        <dd className="text-ink">{b.guests} · {b.phone ? formatIndianMobile(b.phone) : "phone deleted"}</dd>
+        <dd className="text-ink">
+          {b.guests} · {b.phone ? formatIndianMobile(b.phone) : "phone deleted"}
+        </dd>
         <dt>Price</dt>
         <dd className="text-ink">
           {formatPrice(b.agreedPrice)} ({formatPrice(b.depositAmount)} paid online, {formatPrice(b.payAtDesk)} at desk)
@@ -109,6 +160,42 @@ function BookingRow({ b, api, now, showStatus }: { b: AdminBooking; api: AdminAp
         )}
       </dl>
 
+      {b.status === "DISPUTED" && (
+        <div className="grid gap-2 rounded-control bg-soft p-3">
+          <p className="font-medium text-ink">
+            {b.disputeReason === "TURNED_AWAY"
+              ? "Guest says the hotel turned them away."
+              : "Hotel said no-show; the guest says they arrived."}
+          </p>
+          {b.disputeReason === "TURNED_AWAY" && (
+            <p className="text-12 text-ink-secondary">
+              {b.keepHiddenAt
+                ? "Hidden from search tonight until you settle this."
+                : b.hideUntil && Date.parse(b.hideUntil) > now
+                  ? `Hidden from search until ${formatInstantTime(b.hideUntil)}, then shown again.`
+                  : "Shown in search again (the hide period is over)."}
+            </p>
+          )}
+          {b.hotelFailures > 0 && (
+            <p className="text-12 text-ink-secondary">
+              {b.hotelName} has failed {b.hotelFailures} {b.hotelFailures === 1 ? "booking" : "bookings"} before.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <SmallButton variant="ink" onClick={() => act.mutate("stayed")} disabled={act.isPending}>
+              Guest stayed
+            </SmallButton>
+            <SmallButton onClick={() => act.mutate("not-arrived")} disabled={act.isPending}>
+              Guest didn&apos;t arrive
+            </SmallButton>
+            {b.disputeReason === "TURNED_AWAY" && !b.keepHiddenAt && (
+              <SmallButton variant="ghost" onClick={() => act.mutate("keep-hidden")} disabled={act.isPending}>
+                Keep hidden
+              </SmallButton>
+            )}
+          </div>
+        </div>
+      )}
       {b.status === "DEPOSIT_PAID" && (
         <div className="flex flex-wrap items-center gap-2">
           <SmallButton variant="ink" onClick={() => act.mutate("confirm")} disabled={act.isPending}>
@@ -152,6 +239,27 @@ function BookingRow({ b, api, now, showStatus }: { b: AdminBooking; api: AdminAp
           </SmallButton>
         </form>
       )}
+      {canRescue &&
+        (rescuing ? (
+          <div className="grid gap-2">
+            <p className="text-12 text-ink-secondary">
+              Refunds {formatPrice(b.depositAmount)} now, marks the booking hotel failed and counts it against{" "}
+              {b.hotelName}.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <SmallButton variant="ink" onClick={() => act.mutate("rescue")} disabled={act.isPending}>
+                Confirm rescue
+              </SmallButton>
+              <SmallButton variant="ghost" onClick={() => setRescuing(false)} disabled={act.isPending}>
+                Keep
+              </SmallButton>
+            </div>
+          </div>
+        ) : (
+          <SmallButton variant="ghost" className="justify-self-start" onClick={() => setRescuing(true)}>
+            Rescue
+          </SmallButton>
+        ))}
       {act.error && (
         <p role="alert" className="text-12 text-error">
           {act.error.message}

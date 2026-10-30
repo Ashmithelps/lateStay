@@ -85,10 +85,41 @@ class OwnerReplyParserTest {
     }
 
     @ParameterizedTest(name = "\"{0}\" is not understood")
-    @ValueSource(strings = {"", "   ", "1234", "₹800", "800 rupees", "2 guests", "kal baat karte hain", "ok",
-            "Confirm", "yes", "do", "rooms", "rooms 51", "99 rooms", "2 rooms for 3 nights", "call me", "hello"})
+    @ValueSource(strings = {"", "   ", "12345", "₹800", "800 rupees", "2 guests", "kal baat karte hain", "ok",
+            "Confirm", "yes", "do", "rooms", "2 rooms for 3 nights", "call me", "hello", "48210", "12 34", "1234 rooms",
+            "my account balance", "hisaab kal"})
     void everythingElseIsUnknown(String text) {
         assertThat(OwnerReplyParser.parse(null, text)).isInstanceOf(Unknown.class);
+    }
+
+    /** 1-3 digits are always a room count; the handler answers "0 to 50" for the ones above the limit. */
+    @ParameterizedTest(name = "\"{0}\" -> {1}, too many to list")
+    @CsvSource(delimiter = '|', value = {"51|51", "rooms 51|51", "99 rooms|99", "120|120", "999 room khali|999"})
+    void oneToThreeDigitsStayRoomCountsAboveTheLimit(String text, int rooms) {
+        assertThat(rooms).isGreaterThan(OwnerReplyParser.MAX_ROOMS);
+        assertThat(OwnerReplyParser.parse(null, text)).isEqualTo(new RoomsFree(rooms, null, null));
+    }
+
+    @ParameterizedTest(name = "\"{0}\" asks for the account link")
+    @ValueSource(strings = {"hisaab", "Hisab", "HISAAB!", "account", "Account please", "earnings", "my earnings",
+            "hisaab bhejo", "hisaab kitab"})
+    void accountKeywordsAskForTheOwnerPage(String text) {
+        assertThat(OwnerReplyParser.parse(null, text)).isInstanceOf(OwnerReply.AccountLink.class);
+    }
+
+    @ParameterizedTest(name = "\"{0}\" is the desk code {1}")
+    @CsvSource(delimiter = '|', value = {"4821|4821", "0042|0042", "code 4821|4821", "Code: 4821|4821", " 4821 |4821"})
+    void fourDigitsMayBeADeskCode(String text, String code) {
+        assertThat(OwnerReplyParser.parse(null, text)).isEqualTo(new OwnerReply.DeskCode(code));
+    }
+
+    @Test
+    void arrivalCheckButtonsCarryTheBookingAndTheAnswer() {
+        assertThat(OwnerReplyParser.parse(OwnerReplyParser.arrivalPayload(BOOKING, true), "Arrived"))
+                .isEqualTo(new OwnerReply.ArrivalAnswer(BOOKING, true));
+        assertThat(OwnerReplyParser.parse(OwnerReplyParser.arrivalPayload(BOOKING, false), "Didn't arrive"))
+                .isEqualTo(new OwnerReply.ArrivalAnswer(BOOKING, false));
+        assertThat(OwnerReplyParser.parse("ARRIVAL|" + BOOKING + "|MAYBE", "Arrived")).isInstanceOf(Unknown.class);
     }
 
     @Test

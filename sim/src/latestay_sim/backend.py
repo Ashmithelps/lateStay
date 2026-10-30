@@ -48,12 +48,20 @@ class BackendClient:
         return response.json()
 
     def create_session(self, scenario: Scenario) -> dict:
-        response = self._http.post("/api/dev/negotiations", json={
+        body = {
             "listPrice": scenario.list_price,
             "floorPrice": scenario.floor_price,
             "slotType": scenario.slot_type,
             "arrival": scenario.arrival,
-        })
+        }
+        if scenario.pricing is not None:
+            body |= {
+                "pricingVersion": scenario.pricing.version,
+                "roomsFree": scenario.pricing.rooms_free,
+                "totalRooms": scenario.pricing.total_rooms,
+                "demandPercent": scenario.pricing.demand_percent,
+            }
+        response = self._http.post("/api/dev/negotiations", json=body)
         if response.status_code == 404:
             raise BackendError(
                 "POST /api/dev/negotiations returned 404: run the backend with SPRING_PROFILES_ACTIVE=local")

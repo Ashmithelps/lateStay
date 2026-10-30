@@ -10,8 +10,9 @@ import { OfferCard } from "@/components/OfferCard";
 import { PageHeader } from "@/components/PageHeader";
 import { Photo } from "@/components/Photo";
 import { TypingDots } from "@/components/TypingDots";
+import { priceBand, track } from "@/lib/track";
 import { api, ApiError, type ConversationReply, type NegotiationView, type SessionStatus } from "@/lib/api";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, roomOptionLabel } from "@/lib/format";
 import { useNegotiation } from "@/lib/queries";
 import { useLastSearchHref } from "@/lib/search-state";
 
@@ -24,6 +25,7 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
   const negotiation = useNegotiation(sessionId, initial);
 
   const [error, setError] = useState<string | null>(null);
+  const [roomGone, setRoomGone] = useState<string | null>(null);
   const backHref = useLastSearchHref();
   const endRef = useRef<HTMLLIElement>(null);
 
@@ -43,6 +45,9 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
 
   function applyReply(reply: ConversationReply) {
     const movedEngine = reply.intent === "COUNTER" || reply.intent === "ASK_BEST";
+    const context = { negotiationId: sessionId };
+    if (reply.intent === "COUNTER") track("counter_sent", { round: Math.min((v?.round ?? 0) + 1, 50) }, context);
+    if (reply.status === "AGREED") track("offer_accepted", { price_band: priceBand(reply.offer) }, context);
     patch((view) => ({
       ...view,
       messages: [...view.messages, { role: "BOT", text: reply.reply }],
@@ -65,6 +70,12 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
   }
 
   function onError(e: unknown, sent: string) {
+    if (e instanceof ApiError && e.code === "ROOM_GONE") {
+      // Nothing was agreed: someone else took the last room as this traveller accepted.
+      dropUnsent(sent);
+      setRoomGone(e.message);
+      return;
+    }
     if (e instanceof ApiError && e.status === 409) {
       negotiation.refetch();
       return;
@@ -102,7 +113,7 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
     <div className="min-w-0">
       <p className="truncate text-16 font-semibold text-ink">{v.hotel.name}</p>
       <p className="truncate text-12 text-ink-secondary">
-        {v.roomType.name} · {v.hotel.town}
+        {roomOptionLabel(v.roomType)} · {v.hotel.town}
       </p>
     </div>
   ) : null;
@@ -122,7 +133,7 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
     );
   }
 
-  const closed = CLOSED.includes(status);
+  const closed = CLOSED.includes(status) || roomGone !== null;
 
   return (
     <div className="flex h-dvh flex-col">
@@ -154,12 +165,27 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
           <div className="border-t border-hairline px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 lg:px-0">
             {closed ? (
               <div className="py-2">
-                <p className="text-16 font-medium text-ink">
-                  {status === "EXPIRED" ? "This chat has timed out." : "We couldn't agree on a price this time."}
-                </p>
-                <p className="mt-1 text-14 text-ink-secondary">
-                  The front desk&apos;s last offer was {formatPrice(offer)}. Other places nearby may still have rooms.
-                </p>
+                {roomGone ? (
+                  <>
+                    <p role="alert" className="text-16 font-medium text-ink">
+                      {roomGone}
+                    </p>
+                    <p className="mt-1 text-14 text-ink-secondary">
+                      Someone booked it a moment before you accepted. Nothing was charged; other places nearby still
+                      have rooms.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-16 font-medium text-ink">
+                      {status === "EXPIRED" ? "This chat has timed out." : "We couldn't agree on a price this time."}
+                    </p>
+                    <p className="mt-1 text-14 text-ink-secondary">
+                      The front desk&apos;s last offer was {formatPrice(offer)}. Other places nearby may still have
+                      rooms.
+                    </p>
+                  </>
+                )}
                 <ButtonLink href={backHref} variant="outline" fullWidth className="mt-4 sm:w-auto">
                   See other rooms
                 </ButtonLink>
@@ -181,7 +207,7 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
             <Photo src={v.hotel.photo} alt={v.hotel.name} sizes="340px" className="aspect-[20/19] rounded-card" />
             <h2 className="mt-4 text-18 font-semibold text-ink">{v.hotel.name}</h2>
             <p className="text-14 text-ink-secondary">
-              {v.roomType.name} · {v.hotel.town}
+              {roomOptionLabel(v.roomType)} · {v.hotel.town}
             </p>
             <p className="mt-4 text-14 text-ink-secondary">
               The price can only come down while you chat, and nothing is booked until you accept.

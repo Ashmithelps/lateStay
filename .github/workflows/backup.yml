@@ -1,0 +1,41 @@
+name: Weekly database backup
+
+# Sundays 03:00 India time (Saturday 21:30 UTC), or by hand: pg_dump -> age -> R2, 30-day retention.
+# Each environment's secrets live in its GitHub Environment (see docs/RUNBOOK.md).
+on:
+  schedule:
+    - cron: "30 21 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Back up ${{ matrix.env }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [staging, production]
+    environment: ${{ matrix.env }}-backup
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pg_dump 17 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client-17 age
+      - name: Dump, encrypt, upload, prune
+        env:
+          BACKUP_ENV: ${{ matrix.env }}
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_R2_ENDPOINT: ${{ vars.BACKUP_R2_ENDPOINT }}
+          BACKUP_R2_BUCKET: ${{ vars.BACKUP_R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: PATH="/usr/lib/postgresql/17/bin:$PATH" sh scripts/backup.sh

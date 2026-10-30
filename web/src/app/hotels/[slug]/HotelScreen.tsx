@@ -3,16 +3,19 @@
 import { useMutation } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AmenityList } from "@/components/AmenityList";
 import { BottomBar } from "@/components/BottomBar";
 import { Button, ButtonLink } from "@/components/Button";
 import { MapView } from "@/components/MapView";
 import { PageHeader } from "@/components/PageHeader";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
+import { RatingBadge } from "@/components/RatingBadge";
 import { cx } from "@/components/ui";
+import { track } from "@/lib/track";
 import { api, ApiError, type HotelDetail, type RoomOption } from "@/lib/api";
-import { formatDistance, formatPrice, formatTime, roomsFreeLabel } from "@/lib/format";
+import { formatDistance, formatPrice, formatTime, roomOptionLabel, roomsFreeLabel } from "@/lib/format";
+import { formatStayMonth, tagLabel } from "@/lib/reviews";
 import { useHotel } from "@/lib/queries";
 import { useLastSearchHref } from "@/lib/search-state";
 
@@ -34,27 +37,34 @@ function Rule({ term, children }: { term: string; children: ReactNode }) {
   );
 }
 
-function RoomPicker({ rooms, selected, onSelect }: { rooms: RoomOption[]; selected: string; onSelect: (id: string) => void }) {
+/** Two options can start with the same room type (a group's pairs), so options are keyed by all their rooms. */
+function optionKey(room: RoomOption): string {
+  return room.roomTypeIds.join("+");
+}
+
+function RoomPicker({ rooms, selected, onSelect }: { rooms: RoomOption[]; selected: string; onSelect: (key: string) => void }) {
   return (
     <fieldset>
       <legend className="sr-only">Choose a room</legend>
       <div className="divide-y divide-hairline rounded-card border border-hairline">
         {rooms.map((room) => (
           <label
-            key={room.id}
+            key={optionKey(room)}
             className={cx("flex min-h-16 cursor-pointer items-center gap-4 px-4 py-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink")}
           >
             <input
               type="radio"
               name="room"
-              value={room.id}
-              checked={selected === room.id}
-              onChange={() => onSelect(room.id)}
+              value={optionKey(room)}
+              checked={selected === optionKey(room)}
+              onChange={() => onSelect(optionKey(room))}
               className="size-5 accent-ink"
             />
             <span className="flex-1">
-              <span className="block text-16 font-medium text-ink">{room.name}</span>
-              <span className="block text-14 text-ink-secondary">Sleeps {room.maxGuests}</span>
+              <span className="block text-16 font-medium text-ink">{roomOptionLabel(room)}</span>
+              <span className="block text-14 text-ink-secondary">
+                {room.rooms > 1 ? `Sleeps ${room.maxGuests} together` : `Sleeps ${room.maxGuests}`}
+              </span>
             </span>
             <span className="text-16 text-ink">
               <span className="font-semibold tabular-nums">from {formatPrice(room.fromPrice)}</span>
@@ -63,6 +73,72 @@ function RoomPicker({ rooms, selected, onSelect }: { rooms: RoomOption[]; select
         ))}
       </div>
     </fieldset>
+  );
+}
+
+function Reviews({ reviews }: { reviews: HotelDetail["reviews"] }) {
+  const { rating, tags, recent } = reviews;
+  if (rating.count === 0) {
+    return (
+      <Section title="Reviews">
+        <p className="text-16 text-ink-secondary">
+          New on LateStay: no reviews yet. A rating shows once three guests have stayed and rated it.
+        </p>
+      </Section>
+    );
+  }
+  return (
+    <Section title="Reviews">
+      <p className="flex items-center gap-2 text-18 font-semibold text-ink">
+        {rating.value !== null ? (
+          <>
+            <Star size={18} strokeWidth={1.5} className="fill-ink" aria-hidden />
+            <span className="tabular-nums">{rating.value.toFixed(1)}</span>
+            <span className="text-16 font-normal text-ink-secondary">
+              · {rating.count} {rating.count === 1 ? "review" : "reviews"}
+            </span>
+          </>
+        ) : (
+          <>
+            New{" "}
+            <span className="text-16 font-normal text-ink-secondary">
+              · {rating.count} {rating.count === 1 ? "review" : "reviews"} so far
+            </span>
+          </>
+        )}
+      </p>
+      {tags.length > 0 && (
+        <ul className="mt-4 flex flex-wrap gap-2" aria-label="What guests mentioned">
+          {tags.map((t) => (
+            <li key={t.tag} className="rounded-full bg-soft px-3 py-1.5 text-14 text-ink">
+              {tagLabel(t.tag)} <span className="text-ink-secondary tabular-nums">{t.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ul className="mt-6 divide-y divide-hairline">
+        {recent.map((r, i) => (
+          <li key={i} className="py-4 first:pt-0">
+            <p className="flex items-center gap-2 text-14 text-ink-secondary">
+              <span className="inline-flex items-center gap-1 text-ink tabular-nums">
+                <Star size={14} strokeWidth={1.5} className="fill-ink" aria-hidden />
+                <span className="sr-only">Rated </span>
+                {r.stars}
+              </span>
+              <span aria-hidden>·</span>
+              <span>Stayed {formatStayMonth(r.stayedIn)}</span>
+              {r.tags.length > 0 && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{r.tags.map(tagLabel).join(", ")}</span>
+                </>
+              )}
+            </p>
+            {r.text && <p className="mt-1 max-w-prose text-16 text-ink">{r.text}</p>}
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
 
@@ -104,12 +180,23 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
 
   const stay = hotel.data?.stay ?? null;
   const rooms = stay?.roomTypes ?? [];
-  const room = rooms.find((r) => r.id === roomId) ?? rooms[0] ?? null;
+  const room = rooms.find((r) => optionKey(r) === roomId) ?? rooms[0] ?? null;
 
   const start = useMutation({
-    mutationFn: () => api.startNegotiation(stay!.stayRequestId, room!.id),
-    onSuccess: (created) => router.push(`/haggle/${created.id}`),
+    mutationFn: () => api.startNegotiation(stay!.stayRequestId, room!.roomTypeIds),
+    onSuccess: (created) => {
+      track("haggle_started", { hotel: slug }, { stayRequestId: stay?.stayRequestId, negotiationId: created.id });
+      router.push(`/haggle/${created.id}`);
+    },
   });
+
+  const openedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${slug}:${stayId ?? ""}`;
+    if (openedFor.current === key) return;
+    openedFor.current = key;
+    track("hotel_opened", { hotel: slug }, { stayRequestId: stayId });
+  }, [slug, stayId]);
 
   const header = <PageHeader backHref={backHref} backLabel="Back to results" />;
 
@@ -166,13 +253,7 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
           <div>
             <h1 className="text-26 font-semibold text-ink">{h.name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-16 text-ink-secondary">
-              {h.rating !== null && (
-                <span className="inline-flex items-center gap-1 text-ink tabular-nums">
-                  <Star size={16} strokeWidth={1.5} className="fill-ink" aria-hidden />
-                  <span className="sr-only">Rated </span>
-                  {h.rating.toFixed(1)}
-                </span>
-              )}
+              <RatingBadge rating={h.reviews.rating.value} count={h.reviews.rating.count} showCount size={16} />
               <span aria-hidden>·</span>
               <span>{h.town}</span>
               {stay && (
@@ -184,10 +265,18 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
             </p>
             {stay && <p className="mt-2 text-16 font-medium text-pine">{roomsFreeLabel(stay.roomsFree)}</p>}
 
+            {room && room.rooms > 1 && (
+              <p className="mt-4 max-w-prose text-16 text-ink-secondary">
+                No single room here sleeps {stay!.guests}, so this is {room.rooms} rooms ({room.name}) side by side,
+                booked and priced together.
+              </p>
+            )}
             {rooms.length > 1 && (
               <div className="mt-8">
-                <h2 className="mb-4 text-18 font-semibold text-ink">Choose a room</h2>
-                <RoomPicker rooms={rooms} selected={room?.id ?? ""} onSelect={setRoomId} />
+                <h2 className="mb-4 text-18 font-semibold text-ink">
+                  {room && room.rooms > 1 ? "Choose your rooms" : "Choose a room"}
+                </h2>
+                <RoomPicker rooms={rooms} selected={room ? optionKey(room) : ""} onSelect={setRoomId} />
               </div>
             )}
 
@@ -204,6 +293,7 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
                   ))}
                 </dl>
               </Section>
+              <Reviews reviews={h.reviews} />
               <Section title="Where you'll be">
                 <div className="h-64 overflow-hidden rounded-card">
                   <MapView
@@ -223,7 +313,7 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
                 <>
                   {price}
                   <p className="mt-1 text-14 text-ink-secondary">
-                    {room!.name} · sleeps {room!.maxGuests} · arrive {formatTime(stay!.arrive)}
+                    {roomOptionLabel(room!)} · sleeps {room!.maxGuests} · arrive {formatTime(stay!.arrive)}
                   </p>
                   <Button fullWidth className="mt-5" onClick={() => start.mutate()} disabled={start.isPending}>
                     {start.isPending ? "Opening chat…" : "Start haggling"}
@@ -256,7 +346,7 @@ export function HotelScreen({ initial }: { initial?: HotelDetail }) {
               <p className="text-16 text-ink">
                 <span className="font-semibold tabular-nums">from {formatPrice(room!.fromPrice)}</span> tonight
               </p>
-              <p className="truncate text-12 text-ink-secondary">{startError ?? room!.name}</p>
+              <p className="truncate text-12 text-ink-secondary">{startError ?? roomOptionLabel(room!)}</p>
             </>
           ) : (
             <p className="text-14 text-ink-secondary">Search to see tonight&apos;s price</p>

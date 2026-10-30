@@ -18,17 +18,19 @@ const apiOrigin = new URL(__API_ORIGIN__).origin;
 
 /**
  * What works offline: the app shell (precached), pages already visited (Serwist's defaults), the last search
- * results and recent booking passes. Admin, dev and webhook traffic is never cached, and nothing else from the
- * API is either (chat and prices must be live).
+ * results and recent booking passes. Admin, owner, dev and webhook traffic is never cached, nor are shared-stay pages
+ * (a link that was turned off must stop working), and nothing else from the API is either (chat and prices must be
+ * live).
  */
 const latestay: RuntimeCaching[] = [
   {
-    matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/admin"),
+    matcher: ({ url, sameOrigin }) =>
+      sameOrigin && /^\/(admin|owner|stay)(\/|$)/.test(url.pathname),
     handler: new NetworkOnly(),
   },
   {
     matcher: ({ url }) =>
-      url.origin === apiOrigin && /^\/api\/(admin|dev|webhooks)\//.test(url.pathname),
+      url.origin === apiOrigin && /^\/api\/(admin|dev|webhooks|owner)\//.test(url.pathname),
     handler: new NetworkOnly(),
   },
   {

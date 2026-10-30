@@ -67,7 +67,8 @@ public abstract class BookingItSupport {
                 .param("id", bookingId).query().singleRow();
     }
 
+    /** Rooms still sellable: the owner's report minus active holds and live bookings made since. */
     protected int roomsFree(TestBookings.Agreed agreed) {
-        return availability.roomsFree(agreed.hotel().id(), TestBookings.NIGHT);
+        return availability.available(agreed.hotel().id(), TestBookings.NIGHT, clock.instant());
     }
 }

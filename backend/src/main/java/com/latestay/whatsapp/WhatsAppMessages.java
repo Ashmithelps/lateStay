@@ -20,7 +20,13 @@ public final class WhatsAppMessages {
 
     public static final String NIGHTLY_AVAILABILITY = "nightly_availability";
     public static final String BOOKING_REQUEST = "booking_request";
+    public static final String BOOKING_REQUEST_ROOMS = "booking_request_rooms";
     public static final String BOOKING_CANCELLED = "booking_cancelled";
+    public static final String ARRIVAL_CHECK = "arrival_check";
+    public static final String ADMIN_ALERT = "admin_alert";
+    public static final String BOOKING_CONFIRMED = "booking_confirmed";
+    public static final String BOOKING_UPDATE = "booking_update";
+    public static final String MORNING_DIGEST = "morning_digest";
 
     /** Button order of nightly_availability: 0, 1, 2, 3+. */
     static final List<String> ROOM_BUTTONS = List.of("0", "1", "2", "3+");
@@ -52,8 +58,64 @@ public final class WhatsAppMessages {
         return message;
     }
 
+    /** booking_request_rooms: as booking_request, for a group's two (or more) rooms; same buttons. */
+    public static ObjectNode bookingRequestRooms(String to, String language, UUID bookingId, int guests, int rooms,
+            LocalTime arrive, long payAtDesk, long paidOnline, String code) {
+        ObjectNode message = template(to, BOOKING_REQUEST_ROOMS, language, List.of(String.valueOf(guests),
+                String.valueOf(rooms), time(arrive), rupees(payAtDesk), rupees(paidOnline), code));
+        ArrayNode components = (ArrayNode) message.path("template").path("components");
+        components.add(quickReply(0, OwnerReplyParser.bookingPayload(bookingId, Action.CONFIRM)));
+        components.add(quickReply(1, OwnerReplyParser.bookingPayload(bookingId, Action.DECLINE)));
+        return message;
+    }
+
     public static ObjectNode bookingCancelled(String to, String language, String code, String reason) {
         return template(to, BOOKING_CANCELLED, language, List.of(code, reason));
+    }
+
+    /** Authentication template: the code goes in the body and in the copy-code button (sub_type "url"). */
+    public static ObjectNode phoneOtp(String to, String language, String template, String code) {
+        ObjectNode message = template(to, template, language, List.of(code));
+        ArrayNode components = (ArrayNode) message.path("template").path("components");
+        ObjectNode button = components.addObject();
+        button.put("type", "button");
+        button.put("sub_type", "url");
+        button.put("index", "0");
+        button.putArray("parameters").addObject().put("type", "text").put("text", code);
+        return message;
+    }
+
+    /** Buttons: Arrived, Didn't arrive. */
+    public static ObjectNode arrivalCheck(String to, String language, UUID bookingId, String guestName, String code) {
+        ObjectNode message = template(to, ARRIVAL_CHECK, language, List.of(guestName, code));
+        ArrayNode components = (ArrayNode) message.path("template").path("components");
+        components.add(quickReply(0, OwnerReplyParser.arrivalPayload(bookingId, true)));
+        components.add(quickReply(1, OwnerReplyParser.arrivalPayload(bookingId, false)));
+        return message;
+    }
+
+    public static ObjectNode adminAlert(String to, String language, String what, String code, String hotelName) {
+        return template(to, ADMIN_ALERT, language, List.of(what, code, hotelName));
+    }
+
+    /** To the traveller: hotel, address, arrive by, pay at desk, code, pass link, support link. */
+    public static ObjectNode bookingConfirmed(String to, String language, String hotelName, String address,
+            LocalTime arriveBy, long payAtDesk, String code, String passLink, String supportLink) {
+        return template(to, BOOKING_CONFIRMED, language, List.of(hotelName, address, time(arriveBy),
+                rupees(payAtDesk), code, passLink, supportLink));
+    }
+
+    /** To the traveller: one short line (no full stop; the template adds it) and the pass link. */
+    public static ObjectNode bookingUpdate(String to, String language, String line, String passLink) {
+        return template(to, BOOKING_UPDATE, language, List.of(line, passLink));
+    }
+
+    /** To the admin at 09:00: the 13 numbers of {@code docs/whatsapp-templates.md#morning_digest}, in order. */
+    public static ObjectNode morningDigest(String to, String language, List<String> values) {
+        if (values.size() != 13) {
+            throw new IllegalArgumentException("morning_digest takes 13 values");
+        }
+        return template(to, MORNING_DIGEST, language, values);
     }
 
     public static ObjectNode text(String to, String body) {

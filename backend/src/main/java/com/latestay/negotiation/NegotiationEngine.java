@@ -165,7 +165,7 @@ public final class NegotiationEngine {
         PricingPolicy policy = session.policy();
         long floor = policy.effectiveFloor();
         long next = Prices.concede(
-                session.currentOffer(), target, Prices.stepPercent(session.round()), policy.roundTo(), floor);
+                session.currentOffer(), target, Prices.stepPercent(session.round(), policy.context()), policy.roundTo(), floor);
         session.setCurrentOffer(next);
 
         if (next == floor) {

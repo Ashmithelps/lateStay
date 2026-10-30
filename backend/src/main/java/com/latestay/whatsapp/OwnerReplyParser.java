@@ -14,8 +14,10 @@ import java.util.regex.Pattern;
 
 /**
  * Reads owners' replies without an LLM: button payloads first, then a few fixed English and Hinglish phrasings of
- * "N rooms free" ("rooms 2", "2 room khali", "do kamre khali hain", "koi room nahi", "full"). Anything else is
- * Unknown, and the owner is asked to tap a button.
+ * "N rooms free" ("rooms 2", "2 room khali", "do kamre khali hain", "koi room nahi", "full"), a 4-digit number
+ * (maybe a desk code; the handler checks it against the owner's bookings) and the account keywords. Anything else
+ * is Unknown, and the owner is asked to tap a button. Numbers of 1-3 digits are always room counts, even above
+ * {@link #MAX_ROOMS}, so the handler can say the number is too big rather than "I didn't get that".
  */
 public final class OwnerReplyParser {
 
@@ -25,6 +27,13 @@ public final class OwnerReplyParser {
 
     static final String AVAILABILITY = "AVAIL";
     static final String BOOKING = "BOOKING";
+    static final String ARRIVAL = "ARRIVAL";
+
+    /** "4821", "code 4821": maybe a desk code (room counts have at most 3 digits, so 4 digits are never a count). */
+    private static final Pattern DESK_CODE = Pattern.compile("^(?:code\\s*:?\\s*)?(\\d{4})$");
+    /** "hisaab", "account", "earnings": the owner wants a link to their earnings page. */
+    private static final Pattern ACCOUNT = Pattern.compile("^(?:my\\s+)?(?:hisaab|hisab|hisaab\\s+kitab|account|"
+            + "earnings|earning)(?:\\s+(?:link|please|pls|bhejo|do|dikhao))*$");
 
     private static final Map<String, Integer> WORDS = Map.ofEntries(
             Map.entry("zero", 0), Map.entry("one", 1), Map.entry("two", 2), Map.entry("three", 3),
@@ -35,7 +44,7 @@ public final class OwnerReplyParser {
             Map.entry("che", 6), Map.entry("saat", 7), Map.entry("aath", 8), Map.entry("nau", 9),
             Map.entry("das", 10));
 
-    private static final String NUMBER = "(\\d{1,2}|" + String.join("|", WORDS.keySet()) + ")(\\+)?";
+    private static final String NUMBER = "(\\d{1,3}|" + String.join("|", WORDS.keySet()) + ")(\\+)?";
     private static final String ROOM = "(?:rooms?|kamr[ae]|kamron|kamare)";
     private static final String FREE = "(?:\\s+(?:free|khali|khaali|available|empty|left|vacant|bache|bacha|baki|"
             + "hai|hain|he|h|hai ji|tonight|aaj))*";
@@ -45,7 +54,7 @@ public final class OwnerReplyParser {
             + FREE + "$");
     private static final Pattern NUMBER_THEN_ROOMS = Pattern.compile("^" + LEAD + NUMBER + "\\s*" + ROOM + FREE
             + "$");
-    private static final Pattern BARE_NUMBER = Pattern.compile("^(\\d{1,2})(\\+)?$");
+    private static final Pattern BARE_NUMBER = Pattern.compile("^(\\d{1,3})(\\+)?$");
     private static final Pattern NONE = Pattern.compile("^" + LEAD + "(?:"
             + "(?:no|zero|koi\\s+bhi|koi)\\s+" + ROOM + "(?:\\s+(?:free|khali|khaali|available|left|nahi|nhi|nahin|"
             + "hai|hain))*"
@@ -79,6 +88,10 @@ public final class OwnerReplyParser {
                     return new RoomsFree(rooms, UUID.fromString(parts[1]), LocalDate.parse(parts[2]));
                 }
             }
+            if (parts.length == 3 && parts[0].equals(ARRIVAL)
+                    && (parts[2].equals("ARRIVED") || parts[2].equals("NOT_ARRIVED"))) {
+                return new OwnerReply.ArrivalAnswer(UUID.fromString(parts[1]), parts[2].equals("ARRIVED"));
+            }
             if (parts.length == 3 && parts[0].equals(BOOKING)) {
                 return new BookingAnswer(UUID.fromString(parts[1]), Action.valueOf(parts[2]));
             }
@@ -93,6 +106,13 @@ public final class OwnerReplyParser {
                 .replaceAll("[.,!?;'\"()]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
+        Matcher code = DESK_CODE.matcher(t);
+        if (code.matches()) {
+            return new OwnerReply.DeskCode(code.group(1));
+        }
+        if (ACCOUNT.matcher(t).matches()) {
+            return new OwnerReply.AccountLink();
+        }
         if (NONE.matcher(t).matches()) {
             return new RoomsFree(0, null, null);
         }
@@ -100,7 +120,7 @@ public final class OwnerReplyParser {
             Matcher m = pattern.matcher(t);
             if (m.matches()) {
                 Integer rooms = number(m.group(1));
-                if (rooms != null && rooms <= MAX_ROOMS) {
+                if (rooms != null) {
                     return new RoomsFree(rooms, null, null);
                 }
             }
@@ -117,6 +137,10 @@ public final class OwnerReplyParser {
 
     static String availabilityPayload(UUID hotelId, LocalDate nightOf, String rooms) {
         return String.join("|", AVAILABILITY, hotelId.toString(), nightOf.toString(), rooms);
+    }
+
+    static String arrivalPayload(UUID bookingId, boolean arrived) {
+        return String.join("|", ARRIVAL, bookingId.toString(), arrived ? "ARRIVED" : "NOT_ARRIVED");
     }
 
     static String bookingPayload(UUID bookingId, Action action) {

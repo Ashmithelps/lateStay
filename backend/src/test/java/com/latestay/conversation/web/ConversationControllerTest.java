@@ -54,6 +54,19 @@ class ConversationControllerTest {
         InMemoryConversationRepository conversationRepository() {
             return new InMemoryConversationRepository();
         }
+
+        /** Rooms are always free here; holds are tested against the database (RoomHoldIT). */
+        @Bean
+        com.latestay.conversation.llm.LlmSpend llmSpend(LlmClient llm) {
+            return new com.latestay.conversation.llm.LlmSpend(new com.latestay.conversation.llm.LlmProperties("none",
+                    null, null, null, java.time.Duration.ofSeconds(8), java.math.BigDecimal.ZERO,
+                    java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO), llm, null, java.time.Clock.systemUTC());
+        }
+
+        @Bean
+        com.latestay.conversation.RoomGuard roomGuard() {
+            return sessionId -> { };
+        }
     }
 
     @Autowired

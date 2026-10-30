@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useLatestBooking } from "@/lib/bookings-store";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { FilterChips } from "@/components/FilterChips";
@@ -14,6 +14,7 @@ import { MapToggle } from "@/components/MapToggle";
 import { MapView } from "@/components/MapView";
 import { LegalFooter } from "@/components/LegalPage";
 import { OfflineNote } from "@/components/OfflineNote";
+import { RoomNowButton } from "@/components/RoomNowButton";
 import { SearchPill, type SearchSection } from "@/components/SearchPill";
 import dynamic from "next/dynamic";
 import { Wordmark } from "@/components/Wordmark";
@@ -21,12 +22,18 @@ import { cx, focusRing } from "@/components/ui";
 import type { FilterCode } from "@/lib/amenities";
 import { formatPrice, formatTime } from "@/lib/format";
 import { useSearchResults, type InitialSearch } from "@/lib/queries";
+import { analyticsId, firstTouch } from "@/lib/attribution";
+import { api } from "@/lib/api";
+import { nearFirst, NEAR_KM, roomNow } from "@/lib/room-now";
+import { placeTag, track } from "@/lib/track";
 import { readSearch, rememberSearch, writeSearch, type SearchState } from "@/lib/search-state";
 import { stayDates } from "@/lib/stay";
 import { TOWNS } from "@/lib/towns";
 
 // Only mounted once the traveller opens it, so its code stays out of the first load.
 const SearchSheet = dynamic(() => import("@/components/SearchSheet").then((m) => m.SearchSheet));
+
+const noSubscribe = () => () => {};
 
 const container = "mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10";
 
@@ -50,13 +57,43 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
   }, [search]);
   const results = useSearchResults(apiQuery, initial);
 
-  const [sheet, setSheet] = useState<{ open: boolean; section: SearchSection }>({ open: false, section: "where" });
+  const [sheet, setSheet] = useState<{
+    open: boolean;
+    section: SearchSection;
+    initial?: SearchState;
+    notice?: string;
+  }>({ open: false, section: "where" });
+  const [locating, setLocating] = useState(false);
+  // Only known on the client: whether "room now" had to wait for late check-in to open.
+  const opensAt = useSyncExternalStore(
+    noSubscribe,
+    () => (search.now ? roomNow().opensAt : undefined),
+    () => undefined,
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pill = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     rememberSearch(writeSearch(search));
   }, [search]);
+
+  // Each new search's funnel steps. The server-rendered first one is tagged with this browser's UTM tags and
+  // analytics id here, since the server couldn't see them.
+  const stayRequestId = results.data?.stayRequestId;
+  const resultCount = results.data?.results.length ?? 0;
+  const tracked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!stayRequestId || tracked.current === stayRequestId) return;
+    const first = tracked.current === null && initial?.data.stayRequestId === stayRequestId;
+    tracked.current = stayRequestId;
+    if (first) {
+      const touch = firstTouch();
+      api.attributeStay(stayRequestId, { ...touch, analyticsId: analyticsId() }).catch(() => {});
+    }
+    const context = { stayRequestId };
+    track("search_started", { place: placeTag(search.place), guests: search.guests, room_now: !!search.now }, context);
+    if (resultCount > 0) track("results_viewed", { results: Math.min(resultCount, 50), room_now: !!search.now }, context);
+  }, [stayRequestId, resultCount, initial, search.place, search.guests, search.now]);
 
   const go = useCallback(
     (next: SearchState, view: "list" | "map" = showMap ? "map" : "list") => {
@@ -72,6 +109,39 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
     setSheet((s) => ({ ...s, open: false }));
     pill.current?.querySelector<HTMLElement>("button")?.focus();
   }, []);
+
+  /** One tap: here, arriving now (next quarter hour), 2 guests. Without location, the town picker with the same times. */
+  function needRoomNow() {
+    const times = roomNow();
+    const base: SearchState = { ...search, arrive: times.arrive, leave: times.leave, guests: times.guests, filters: [], now: true };
+    const pickTown = () =>
+      setSheet({
+        open: true,
+        section: "where",
+        initial: base,
+        // Non-breaking space: "5:15 am" stays on one line.
+        notice: `We couldn't get your location. Pick a town: arriving ${formatTime(times.arrive).replace(" ", "\u00a0")}, ${times.guests} guests.`,
+      });
+    if (!("geolocation" in navigator)) {
+      track("room_now_tapped", { located: false });
+      pickTown();
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        track("room_now_tapped", { located: true });
+        go({ ...base, place: "here", placeLabel: "Your location", lat: pos.coords.latitude, lng: pos.coords.longitude }, "list");
+      },
+      () => {
+        setLocating(false);
+        track("room_now_tapped", { located: false });
+        pickTown();
+      },
+      { timeout: 8000, maximumAge: 60_000 },
+    );
+  }
 
   function toggleFilter(code: FilterCode) {
     const filters = search.filters.includes(code)
@@ -107,12 +177,25 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
     <div className="mb-6">
       <h1 className="text-18 font-semibold text-ink">
         {results.isPending
-          ? `Finding rooms near ${search.placeLabel}`
-          : `${hotels.length} ${hotels.length === 1 ? "place" : "places"} with rooms tonight near ${search.placeLabel}`}
+          ? `Finding rooms near ${search.place === "here" ? "you" : search.placeLabel}`
+          : `${hotels.length} ${hotels.length === 1 ? "place" : "places"} with rooms tonight near ${search.place === "here" ? "you" : search.placeLabel}`}
       </h1>
       <p className="text-14 text-ink-secondary">
-        Arrive {formatTime(search.arrive)} · leave {formatTime(search.leave)} · within 10 km
+        Arrive {formatTime(search.arrive)} · leave {formatTime(search.leave)} · {search.guests}{" "}
+        {search.guests === 1 ? "guest" : "guests"} · within 10 km
       </p>
+      {opensAt && (
+        <p className="mt-1 text-14 text-ink-secondary">Late check-in starts at {formatTime(opensAt)}, so this is for then.</p>
+      )}
+    </div>
+  );
+
+  const grid = "grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  const cards = (list: typeof hotels, offset = 0) => (
+    <div className={grid}>
+      {list.map((hotel, i) => (
+        <HotelCard key={hotel.id} hotel={hotel} href={hrefFor(hotel.slug)} priority={offset + i === 0} />
+      ))}
     </div>
   );
 
@@ -160,14 +243,28 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
         ]}
       />
     );
-  } else {
+  } else if (search.now) {
+    const { near, further } = nearFirst(hotels);
     body = (
-      <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {hotels.map((hotel, i) => (
-          <HotelCard key={hotel.id} hotel={hotel} href={hrefFor(hotel.slug)} priority={i === 0} />
-        ))}
+      <div className="space-y-10">
+        <section aria-labelledby="near-title">
+          <h2 id="near-title" className="mb-4 text-16 font-semibold text-ink">
+            Within {NEAR_KM} km
+          </h2>
+          {near.length ? cards(near) : <p className="text-14 text-ink-secondary">Nothing free this close. The nearest are below.</p>}
+        </section>
+        {further.length > 0 && (
+          <section aria-labelledby="further-title" className="border-t border-hairline pt-8">
+            <h2 id="further-title" className="mb-4 text-16 font-semibold text-ink">
+              Further away
+            </h2>
+            {cards(further, near.length)}
+          </section>
+        )}
       </div>
     );
+  } else {
+    body = cards(hotels);
   }
 
   return (
@@ -199,6 +296,7 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
             <OfflineNote className="mb-4">
               You&apos;re offline. Showing your last search; prices may have changed.
             </OfflineNote>
+            <RoomNowButton busy={locating} onClick={needRoomNow} className="mb-6" />
             {(results.isPending || hotels.length > 0) && summary}
             {body}
           </main>
@@ -220,10 +318,11 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
       {sheet.open && (
         <SearchSheet
           section={sheet.section}
-          initial={search}
+          initial={sheet.initial ?? search}
+          notice={sheet.notice}
           onClose={closeSheet}
           onSearch={(next) => {
-            setSheet((s) => ({ ...s, open: false }));
+            setSheet({ open: false, section: sheet.section });
             go(next);
           }}
         />

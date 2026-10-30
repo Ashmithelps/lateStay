@@ -48,9 +48,15 @@ public class ConversationService {
     private final ReplyPhraser phraser;
     private final ReplyValidator validator;
     private final ReplyTemplates templates;
+    private final RoomGuard rooms;
+
+    private final com.latestay.conversation.llm.LlmSpend spend;
 
     public ConversationService(ConversationRepository conversations, NegotiationEngine engine, IntentParser intents,
-            ReplyPhraser phraser, ReplyValidator validator, ReplyTemplates templates) {
+            ReplyPhraser phraser, ReplyValidator validator, ReplyTemplates templates, RoomGuard rooms,
+            com.latestay.conversation.llm.LlmSpend spend) {
+        this.spend = spend;
+        this.rooms = rooms;
         this.conversations = conversations;
         this.engine = engine;
         this.intents = intents;
@@ -60,15 +66,17 @@ public class ConversationService {
     }
 
     /** The bot's first message for a freshly opened session. */
-    public record OpeningReply(String text, ReplySource source, String validatorResult, int latencyMs) {
+    public record OpeningReply(String text, ReplySource source, String validatorResult, int latencyMs,
+            com.latestay.conversation.llm.LlmSpend.TurnSpend spend) {
     }
 
     public OpeningReply openingReply(NegotiationSession session, HotelFacts facts) {
         long started = System.nanoTime();
         EngineDecision opening = session.history().getFirst().decision();
-        Composed reply = compose(new ReplyContext(opening, facts, Register.ENGLISH, List.of(), null),
-                new LlmUsageMeter());
-        return new OpeningReply(reply.text(), reply.source(), reply.validation(), elapsedMs(started));
+        LlmUsageMeter meter = new LlmUsageMeter();
+        Composed reply = compose(new ReplyContext(opening, facts, Register.ENGLISH, List.of(), null), meter);
+        return new OpeningReply(reply.text(), reply.source(), reply.validation(), elapsedMs(started),
+                spend.of(meter.usage()));
     }
 
     @Transactional(noRollbackFor = SessionClosedException.class)
@@ -97,6 +105,7 @@ public class ConversationService {
         } else {
             decision = engine.respond(session, toEvent(intent));
             reasonCode = decision.reasonCode();
+            reserveRoomIfAgreed(conversationId, decision);
         }
 
         List<ChatMessage> recent = new ArrayList<>(conversation.transcript());
@@ -109,7 +118,8 @@ public class ConversationService {
 
         conversations.save(session, List.of(
                 NewTurn.traveller(message, intent),
-                NewTurn.bot(reply.text(), question ? null : decision, reply.validation(), elapsedMs(started))));
+                NewTurn.bot(reply.text(), question ? null : decision, reply.validation(), elapsedMs(started),
+                        spend.of(meter.usage()))));
         return new ConversationReply(reply.text(), session.currentOffer(), session.status(), reasonCode,
                 intent.type(), reply.source(), meter.usage());
     }
@@ -134,6 +144,7 @@ public class ConversationService {
         String message = "Accept " + Money.format(session.currentOffer());
         Intent intent = new Intent(IntentType.ACCEPT, null, null, lastRegister(conversation));
         EngineDecision decision = engine.respond(session, new TravellerEvent.Accept());
+        reserveRoomIfAgreed(conversationId, decision);
 
         List<ChatMessage> recent = new ArrayList<>(conversation.transcript());
         recent.add(ChatMessage.traveller(message));
@@ -143,9 +154,20 @@ public class ConversationService {
 
         conversations.save(session, List.of(
                 NewTurn.traveller(message, intent),
-                NewTurn.bot(reply.text(), decision, reply.validation(), elapsedMs(started))));
+                NewTurn.bot(reply.text(), decision, reply.validation(), elapsedMs(started),
+                        spend.of(meter.usage()))));
         return new ConversationReply(reply.text(), session.currentOffer(), session.status(), decision.reasonCode(),
                 IntentType.ACCEPT, reply.source(), meter.usage());
+    }
+
+    /**
+     * An agreement needs a room: take the hold now, inside this transaction. If the last room just went, the
+     * exception rolls everything back, so the session is not agreed.
+     */
+    private void reserveRoomIfAgreed(String conversationId, EngineDecision decision) {
+        if (decision.action() == EngineAction.AGREE) {
+            rooms.reserve(conversationId);
+        }
     }
 
     /** Hinglish if the traveller's last message was; otherwise English. */

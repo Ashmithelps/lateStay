@@ -8,4 +8,9 @@ public interface LlmClient {
      * @throws LlmUnavailableException when no usable answer came back
      */
     LlmResponse complete(LlmRequest request);
+
+    /** The model the calls go to, for the cost log; null when there is no model. */
+    default String model() {
+        return null;
+    }
 }

@@ -31,9 +31,15 @@ final class ConversationHarness {
             Clock.fixed(Instant.parse("2026-10-28T17:30:00Z"), ZoneId.of("Asia/Kolkata")));
     final ConversationService service;
 
+    /** $1 per million input tokens, $5 per million output: cost = input + 5 × output micro-dollars. */
+    static final com.latestay.conversation.llm.LlmProperties PRICED = new com.latestay.conversation.llm.LlmProperties(
+            "anthropic", "test-model", "key", null, java.time.Duration.ofSeconds(8), java.math.BigDecimal.ONE,
+            java.math.BigDecimal.valueOf(5), java.math.BigDecimal.ZERO);
+
     ConversationHarness(LlmClient llm) {
         service = new ConversationService(repository, engine, new IntentParser(llm, amounts), new ReplyPhraser(llm),
-                validator, new ReplyTemplates(validator));
+                validator, new ReplyTemplates(validator), sessionId -> { },
+                new com.latestay.conversation.llm.LlmSpend(PRICED, llm, null, java.time.Clock.systemUTC()));
     }
 
     NegotiationSession open() {

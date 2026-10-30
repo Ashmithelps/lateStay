@@ -1,5 +1,6 @@
 package com.latestay.conversation.web;
 
+import com.latestay.conversation.RoomGoneException;
 import com.latestay.conversation.UnknownConversationException;
 import com.latestay.negotiation.SessionClosedException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,14 @@ class ConversationExceptionHandler {
     ProblemDetail closed(SessionClosedException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
         problem.setProperty("sessionStatus", e.status());
+        return problem;
+    }
+
+    /** The last room went to someone else as this traveller accepted: nothing was agreed. */
+    @ExceptionHandler(RoomGoneException.class)
+    ProblemDetail roomGone(RoomGoneException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problem.setProperty("code", "ROOM_GONE");
         return problem;
     }
 }

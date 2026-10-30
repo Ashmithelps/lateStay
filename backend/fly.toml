@@ -1,4 +1,5 @@
-# Fly.io: `fly deploy` from backend/. See docs/DEPLOY.md for secrets and first-time setup.
+# Fly.io, production: `fly deploy` from backend/ (GitHub Actions does it from a version tag). Staging is
+# fly.staging.toml. See docs/DEPLOY.md for secrets and first-time setup.
 app = "latestay-api"
 # Singapore: Fly has no region in India; this is the nearest.
 primary_region = "sin"
@@ -8,6 +9,7 @@ primary_region = "sin"
 
 [env]
   SPRING_PROFILES_ACTIVE = "prod"
+  APP_ENV = "production"
   PORT = "8080"
   SENTRY_ENVIRONMENT = "production"
 

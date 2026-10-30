@@ -1,6 +1,8 @@
 package com.latestay.hotel;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -25,7 +27,17 @@ public class AvailabilityRepository {
                 .param("source", source.name()).update();
     }
 
-    /** 0 when nothing was reported for that night. */
+    /**
+     * Rooms still sellable for the night: the latest report minus active holds and live bookings made after it
+     * (SQL function rooms_available, migration V6). 0 when nothing was reported.
+     */
+    public int available(UUID hotelId, LocalDate nightOf, Instant now) {
+        return jdbc.sql("SELECT rooms_available(:hotel, :night, :now)")
+                .param("hotel", hotelId).param("night", nightOf).param("now", now.atOffset(ZoneOffset.UTC))
+                .query(Integer.class).single();
+    }
+
+    /** The owner's latest report as given (before holds and bookings). 0 when nothing was reported. */
     public int roomsFree(UUID hotelId, LocalDate nightOf) {
         return jdbc.sql("SELECT rooms_free FROM nightly_availability WHERE hotel_id = :hotel AND night_of = :night")
                 .param("hotel", hotelId).param("night", nightOf).query(Integer.class).optional().orElse(0);

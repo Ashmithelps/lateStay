@@ -28,9 +28,14 @@ class SearchController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime arrive,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime leave,
             @RequestParam(defaultValue = "1") int guests,
-            @RequestParam(required = false) String filters) {
+            @RequestParam(required = false) String filters,
+            @RequestParam(name = "utm_source", required = false) String utmSource,
+            @RequestParam(name = "utm_medium", required = false) String utmMedium,
+            @RequestParam(name = "utm_campaign", required = false) String utmCampaign,
+            @RequestParam(name = "aid", required = false) String analyticsId) {
         List<SearchFilter> parsed = filters == null || filters.isBlank() ? List.of()
                 : Arrays.stream(filters.split(",")).filter(f -> !f.isBlank()).map(SearchFilter::parse).distinct().toList();
-        return search.search(lat, lng, StayWindow.of(arrive, leave), guests, parsed);
+        return search.search(lat, lng, StayWindow.of(arrive, leave), guests, parsed,
+                Attribution.of(utmSource, utmMedium, utmCampaign, analyticsId));
     }
 }

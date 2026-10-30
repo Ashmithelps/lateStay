@@ -40,7 +40,7 @@ public class TestHotels {
             boolean active) {
         String slug = name.toLowerCase().replaceAll("[^a-z0-9]+", "-") + "-" + UUID.randomUUID().toString().substring(0, 8);
         return hotels.insert(new Hotel(null, name, slug, "Testpur", "1 Test Road", lat, lng, uniqueWhatsAppNumber(),
-                amenities, policies, new BigDecimal("4.2"), active, List.of("/seed/" + slug + "-1.png")));
+                amenities, policies, 10, active, List.of("/seed/" + slug + "-1.png")));
     }
 
     /** Each test hotel gets its own owner number, so WhatsApp messages match exactly one hotel. */

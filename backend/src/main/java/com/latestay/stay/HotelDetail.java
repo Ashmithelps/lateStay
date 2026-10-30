@@ -3,7 +3,7 @@ package com.latestay.stay;
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.latestay.negotiation.SlotType;
 import com.latestay.stay.SearchResponse.RoomOption;
-import java.math.BigDecimal;
+import com.latestay.review.ReviewDtos.HotelReviews;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -12,10 +12,10 @@ import java.util.UUID;
 
 /**
  * A hotel page. {@code stay} is present when the page was opened from a search: it carries tonight's distance,
- * rooms and prices for that stay request.
+ * rooms and prices for that stay request. {@code reviews} carries the rating (null = "New") and recent reviews.
  */
 public record HotelDetail(UUID id, String slug, String name, String town, String address, double lat, double lng,
-        List<String> photos, List<String> amenities, Policies policies, @Schema(nullable = true) BigDecimal rating,
+        List<String> photos, List<String> amenities, Policies policies, HotelReviews reviews,
         @Schema(nullable = true) Stay stay) {
 
     public record Policies(boolean coupleFriendly, boolean localIdOk, @Schema(nullable = true) String checkInNotes) {

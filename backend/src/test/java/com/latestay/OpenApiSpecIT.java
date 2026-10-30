@@ -41,11 +41,13 @@ class OpenApiSpecIT {
         assertThat(spec.path("paths").fieldNames()).toIterable().contains(
                 "/api/search", "/api/hotels/{slug}", "/api/negotiations", "/api/negotiations/{id}",
                 "/api/negotiations/{id}/messages", "/api/negotiations/{id}/accept", "/api/bookings",
-                "/api/bookings/{id}", "/api/bookings/{id}/verify", "/api/bookings/{id}/cancel", "/api/negotiations/{sessionId}/booking-preview");
+                "/api/bookings/{id}", "/api/bookings/{id}/verify", "/api/bookings/{id}/cancel", "/api/negotiations/{sessionId}/booking-preview",
+                "/api/bookings/{id}/arrived", "/api/bookings/{id}/turned-away", "/api/phone-verifications",
+                "/api/phone-verifications/{id}/check", "/api/phone-verifications/status");
         // Razorpay's webhook is public but not part of the web app's contract.
         assertThat(spec.path("paths").has("/api/webhooks/razorpay")).isFalse();
         assertThat(spec.path("paths").fieldNames()).toIterable()
-                .noneMatch(p -> p.startsWith("/api/admin") || p.startsWith("/api/dev"));
+                .noneMatch(p -> p.startsWith("/api/admin") || p.startsWith("/api/dev") || p.startsWith("/api/owner"));
         // The FLOOR_REACHED reason code names a situation, not a value; anything else mentioning the floor fails.
         assertThat(body.toLowerCase().replace("floor_reached", "")).doesNotContain("floor");
 

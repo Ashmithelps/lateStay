@@ -23,7 +23,8 @@ public record WhatsAppLogEntry(long id, String direction, String waId, String ty
         try {
             JsonNode p = JSON.readTree(m.payload());
             if (p.has("text")) {
-                return p.path("text").path("body").asText();
+                return p.path("text").path("body").asText()
+                        .replaceAll("(/owner/login\\?t=)[A-Za-z0-9_-]+", "$1[redacted]");
             }
             if (p.has("button")) {
                 return "Tapped \"" + p.path("button").path("text").asText() + "\"";

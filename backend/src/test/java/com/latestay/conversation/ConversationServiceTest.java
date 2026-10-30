@@ -67,6 +67,34 @@ class ConversationServiceTest {
     }
 
     @Test
+    void eachBotTurnRecordsItsLlmCallsTokensAndCost() {
+        FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "english"),
+                replies("Special price ₹500 just for you!", "I can do ₹900 for tonight."));
+        ConversationHarness h = new ConversationHarness(llm);
+        NegotiationSession session = h.open();
+        h.service.handle(session.id(), "500?");
+
+        var turns = h.repository.turns(session.id());
+        var bot = turns.getLast();
+        // One intent call and two reply drafts: 3 × 100 in, 3 × 20 out; $1 / $5 per million tokens.
+        assertThat(bot.spend().calls()).isEqualTo(3);
+        assertThat(bot.spend().inputTokens()).isEqualTo(300);
+        assertThat(bot.spend().outputTokens()).isEqualTo(60);
+        assertThat(bot.spend().costMicroUsd()).isEqualTo(300 + 5 * 60);
+        assertThat(turns.get(turns.size() - 2).spend()).as("traveller turns carry no spend").isNull();
+    }
+
+    @Test
+    void aTurnAnsweredWithoutTheLlmRecordsNoSpend() {
+        ConversationHarness h = new ConversationHarness(FakeLlmClient.down());
+        NegotiationSession session = h.open();
+        h.service.handle(session.id(), "500?");
+        // The calls were attempted (and failed): counted, with no tokens.
+        var spend = h.repository.turns(session.id()).getLast().spend();
+        assertThat(spend == null || spend.inputTokens() == 0).isTrue();
+    }
+
+    @Test
     void savesTravellerAndBotTurnsWithIntentDecisionAndValidatorResult() {
         FakeLlmClient llm = new FakeLlmClient(intent("COUNTER", 500L, "hinglish"),
                 replies("Fine, ₹500.", "Itna kam nahi, ₹900 mein ho jayega."));

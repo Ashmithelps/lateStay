@@ -20,12 +20,19 @@ public class WhatsAppOutbox {
         this.clock = clock;
     }
 
+    /** Who a message is for: owners' rows show in the hotel's log; travellers' numbers are redacted later. */
+    public enum Audience { OWNER, TRAVELLER, ADMIN }
+
     /** @return false if a message with this dedupe key was already queued */
     public boolean queue(UUID hotelId, JsonNode message, UUID bookingId, String dedupeKey) {
+        return queue(hotelId, message, bookingId, dedupeKey, Audience.OWNER);
+    }
+
+    public boolean queue(UUID hotelId, JsonNode message, UUID bookingId, String dedupeKey, Audience audience) {
         String type = message.path("type").asText();
         String template = type.equals("template") ? message.path("template").path("name").asText() : null;
         return messages.queue(hotelId, message.path("to").asText(), type, template, message.toString(), bookingId,
-                dedupeKey, clock.instant());
+                dedupeKey, clock.instant(), audience.name());
     }
 
     /** WhatsApp ids are the number's digits, without + or spaces. */

@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.ResultActions;
         "latestay.rate-limit.messages-per-session=3",
         "latestay.rate-limit.messages-per-ip=5",
         "latestay.rate-limit.bookings-per-ip=2",
+        "latestay.rate-limit.codes-per-ip-per-hour=3",
         "latestay.web-origin=https://latestay.example, https://preview.latestay.example"})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -86,7 +87,7 @@ class HardeningIT {
             mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(body).with(r -> {
                 r.setRemoteAddr(ip);
                 return r;
-            })).andExpect(status().isNotFound());
+            })).andExpect(status().isForbidden()); // no verified phone on this "device", but counted
         }
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(body).with(r -> {
             r.setRemoteAddr(ip);
@@ -126,5 +127,22 @@ class HardeningIT {
         message.putObject("text").put("body", "rooms 2");
         whatsApp.simulateInbound(message);
         assertThat(output.getOut()).contains("unknown number +91•••••3210 ignored").doesNotContain("919876543210");
+    }
+
+    @Test
+    void verificationCodesAreLimitedPerIp() throws Exception {
+        String ip = "192.0.2." + (int) (100 + Math.random() * 90);
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(post("/api/phone-verifications").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"phone\":\"" + com.latestay.TestHotels.uniqueWhatsAppNumber() + "\"}").with(r -> {
+                        r.setRemoteAddr(ip);
+                        return r;
+                    })).andExpect(status().isCreated());
+        }
+        mvc.perform(post("/api/phone-verifications").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"phone\":\"" + com.latestay.TestHotels.uniqueWhatsAppNumber() + "\"}").with(r -> {
+                    r.setRemoteAddr(ip);
+                    return r;
+                })).andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
     }
 }

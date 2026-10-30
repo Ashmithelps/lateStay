@@ -1,0 +1,9 @@
+# Staging: SPRING_PROFILES_ACTIVE=prod,staging. Everything production has (JSON logs, Secure cookies, startup
+# checks, no dev endpoints), plus the seeded hotels and Razorpay test keys only.
+latestay:
+  environment: staging
+  seed:
+    enabled: true
+
+sentry:
+  environment: ${SENTRY_ENVIRONMENT:staging}

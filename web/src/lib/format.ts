@@ -42,3 +42,29 @@ export function formatInstantTime(instant: string): string {
 export function guestsLabel(guests: number): string {
   return guests === 1 ? "1 guest" : `${guests} guests`;
 }
+
+const paiseFormat = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/** Ledger amounts are in paise: 10000 -> "₹100", 2550 -> "₹25.5" shown as "₹25.50" */
+export function formatPaise(paise: number): string {
+  const text = paiseFormat.format(paise / 100);
+  return /\.\d$/.test(text) ? `${text}0` : text;
+}
+
+const dateFormat = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** "2026-11-09" -> "9 Nov" */
+export function formatDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return dateFormat.format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+/** "2026-11-16" -> "Mon, 16 Nov" */
+export function formatWeekday(isoDate: string): string {
+  return formatDay(isoDate);
+}
+
+/** A room option's name: "Deluxe", or "2 rooms: Twin + Family" for a group. */
+export function roomOptionLabel(option: { name: string; rooms: number }): string {
+  return option.rooms > 1 ? `${option.rooms} rooms: ${option.name}` : option.name;
+}

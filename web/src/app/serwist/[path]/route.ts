@@ -10,7 +10,8 @@ const revision = createHash("sha256")
 
 /**
  * Precache the traveller app, not everything: Leaflet (fetched and cached when "Show map" is first tapped) and
- * the admin panel stay out, so a first visit on mobile data doesn't download them in the background.
+ * the admin panel and the hotel owner's page stay out, so a first visit on mobile data doesn't download them in the
+ * background.
  */
 function travellerChunk(url: string): boolean {
   // Transforms run before Serwist rewrites ".next/static/..." into "/_next/static/...".
@@ -18,7 +19,7 @@ function travellerChunk(url: string): boolean {
   if (!file || !file.startsWith(".next/static/chunks/") || !file.endsWith(".js")) return true;
   try {
     const code = readFileSync(file, "utf-8");
-    return !code.includes("leaflet-container") && !code.includes("Admin sign-in");
+    return !code.includes("leaflet-container") && !code.includes("Admin sign-in") && !code.includes("Sign in from WhatsApp");
   } catch {
     return true;
   }

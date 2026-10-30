@@ -12,7 +12,11 @@ public enum BookingStatus {
     HOTEL_TIMEOUT,
     REFUNDED,
     CANCELLED,
-    NO_SHOW;
+    NO_SHOW,
+    /** The traveller disputes what happened ("I did arrive", "the hotel turned me away"); an admin settles it. */
+    DISPUTED,
+    /** An admin's Rescue: the hotel let the traveller down. Refunded in full; counts against the hotel. */
+    HOTEL_FAILED;
 
     /** Holding a room and a desk code. */
     public boolean isLive() {

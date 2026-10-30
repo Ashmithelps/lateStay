@@ -48,6 +48,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                              "(default $SIM_BACKEND_MODEL or claude-haiku-5-5)")
     parser.add_argument("--base-url", default=None, help="backend URL (default $SIM_BASE_URL or http://localhost:8080)")
     parser.add_argument("--out", type=Path, default=SIM_DIR / "reports", help="reports directory")
+    parser.add_argument("--compare", action="store_true",
+                        help="run every scenario under the old and the new pricing policy and write "
+                             "reports/pricing-compare.md")
     return parser.parse_args(argv)
 
 
@@ -74,6 +77,9 @@ def main(argv: list[str] | None = None) -> int:
     except BackendError as e:
         print(f"{e}\nStart it with: cd backend && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun", file=sys.stderr)
         return 2
+
+    if args.compare:
+        return run_compare(backend, args, persona_model, llm_client, base_url)
 
     rng = random.Random(args.seed)
     scenarios = sample(args.n, rng)
@@ -116,3 +122,25 @@ def main(argv: list[str] | None = None) -> int:
     if overall.errors == overall.conversations:
         return 2
     return 0
+
+
+def run_compare(backend: BackendClient, args: argparse.Namespace, persona_model: str | None, llm_client,
+                base_url: str) -> int:
+    from latestay_sim import compare
+
+    jobs = compare.jobs(args.n, random.Random(args.seed))
+    print(f"Comparing pricing on {args.n} scenarios (x2) against {base_url} "
+          f"({'offline personas' if not persona_model else persona_model})", file=sys.stderr)
+    pairs = compare.run(backend, jobs, args.max_turns, args.concurrency, llm_client, persona_model)
+    backend.close()
+    report = compare.write_report(pairs, args.out / "pricing-compare.md", n=args.n, seed=args.seed,
+                                  persona_model=persona_model, base_url=base_url,
+                                  timestamp=datetime.now().strftime("%Y-%m-%d %H:%M"))
+    old = compare.summarize([p.old for p in pairs])
+    new = compare.summarize([p.new for p in pairs])
+    print(f"Old: deals {old.deal_rate:.1f}%, RevPAR {old.revpar:,.0f}. New: deals {new.deal_rate:.1f}%, "
+          f"RevPAR {new.revpar:,.0f}. Report: {report}")
+    if old.floor_violations or new.floor_violations or old.mismatches or new.mismatches:
+        print("FAIL: floor violations or number mismatches found", file=sys.stderr)
+        return 1
+    return 2 if old.errors == len(pairs) or new.errors == len(pairs) else 0

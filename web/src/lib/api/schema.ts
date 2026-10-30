@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bookings/{id}/arrived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["arrived"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bookings/{id}/cancel": {
         parameters: {
             query?: never;
@@ -52,6 +68,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bookings/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["state"];
+        put?: never;
+        post: operations["submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bookings/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["current"];
+        put?: never;
+        post: operations["create_2"];
+        delete: operations["turnOff"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bookings/{id}/turned-away": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["turnedAway"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bookings/{id}/verify": {
         parameters: {
             query?: never;
@@ -62,6 +126,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -171,9 +251,73 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get: operations["preview_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/negotiations/{sessionId}/promo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         get: operations["preview"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/phone-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/phone-verifications/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/phone-verifications/{id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["check"];
         delete?: never;
         options?: never;
         head?: never;
@@ -196,10 +340,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stay-requests/{id}/attribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attribute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stays/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/towns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/towns/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Actions: {
+            cancel: boolean;
+            didArrive: boolean;
+            turnedAway: boolean;
+        };
+        AttributionBody: {
+            analyticsId: string | null;
+            utmCampaign: string | null;
+            utmMedium: string | null;
+            utmSource: string | null;
+        };
         BookingCreated: {
             /** Format: uuid */
             bookingId: string;
@@ -207,7 +426,7 @@ export interface components {
             /** Format: date-time */
             payBy: string;
             /** @enum {string} */
-            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW";
+            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | "DISPUTED" | "HOTEL_FAILED";
         };
         BookingPreview: {
             /** Format: int64 */
@@ -231,8 +450,10 @@ export interface components {
             sessionId: string;
         };
         BookingView: {
+            actions: components["schemas"]["Actions"];
             /** Format: int64 */
             agreedPrice: number;
+            alternatives: components["schemas"]["NextBest"][];
             /** Format: date-time */
             arriveAt: string;
             /** Format: date-time */
@@ -242,6 +463,7 @@ export interface components {
             confirmBy: string | null;
             /** Format: int64 */
             depositAmount: number;
+            disputeReason: string | null;
             guestName: string;
             /** Format: int32 */
             guests: number;
@@ -258,12 +480,15 @@ export interface components {
             phone: string | null;
             refund: components["schemas"]["Refund"];
             /** @enum {string|null} */
-            refundedFrom: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | null;
+            refundedFrom: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | "DISPUTED" | "HOTEL_FAILED" | null;
             roomType: string;
             /** Format: uuid */
             sessionId: string;
             /** @enum {string} */
-            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW";
+            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | "DISPUTED" | "HOTEL_FAILED";
+        };
+        CheckRequest: {
+            code: string;
         };
         Checkout: {
             /** Format: int64 */
@@ -298,20 +523,43 @@ export interface components {
             guestName: string;
             idConsent: boolean;
             phone: string;
+            /** @description A promo code, taken off the deposit */
+            promoCode: string | null;
             /** Format: uuid */
             sessionId: string;
+            /** @description The traveller ticked "Send my booking pass and updates on WhatsApp" */
+            whatsappUpdates: boolean | null;
         };
         CreateRequest: {
             /** Format: uuid */
-            roomTypeId: string;
+            roomTypeId: string | null;
+            roomTypeIds: (string | null)[] | null;
             /** Format: uuid */
             stayRequestId: string;
+        };
+        DeviceStatus: {
+            verified: boolean;
+        };
+        EventBody: {
+            distinctId: string;
+            name: string;
+            /**
+             * Format: uuid
+             * @description For chat and booking steps: the stay is found from it
+             */
+            negotiationId: string | null;
+            properties: {
+                [key: string]: Record<string, never> | null;
+            } | null;
+            /** Format: uuid */
+            stayRequestId: string | null;
+            utmSource: string | null;
         };
         ExistingBooking: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW";
+            status: "PENDING_PAYMENT" | "DEPOSIT_PAID" | "HOTEL_CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "EXPIRED" | "HOTEL_DECLINED" | "HOTEL_TIMEOUT" | "REFUNDED" | "CANCELLED" | "NO_SHOW" | "DISPUTED" | "HOTEL_FAILED";
         } | null;
         HealthResponse: {
             postgis: string;
@@ -329,7 +577,7 @@ export interface components {
             name: string;
             photos: string[];
             policies: components["schemas"]["Policies"];
-            rating: number | null;
+            reviews: components["schemas"]["HotelReviews"];
             slug: string;
             stay: components["schemas"]["Stay"];
             town: string;
@@ -363,11 +611,18 @@ export interface components {
             name: string;
             photos: string[];
             rating: number | null;
+            /** Format: int32 */
+            reviewCount: number;
             roomTypes: components["schemas"]["RoomOption"][];
             /** Format: int32 */
             roomsFree: number;
             slug: string;
             town: string;
+        };
+        HotelReviews: {
+            rating: components["schemas"]["Rating"];
+            recent: components["schemas"]["PublicReview"][];
+            tags: components["schemas"]["TagCount"][];
         };
         HotelSummary: {
             /** Format: uuid */
@@ -392,6 +647,12 @@ export interface components {
         MessageRequest: {
             text: string;
         };
+        MyReview: {
+            /** Format: int32 */
+            stars: number;
+            tags: ("CLEAN" | "WARM" | "QUIET" | "FRIENDLY_DESK" | "AS_SHOWN")[];
+            text: string | null;
+        };
         NegotiationCreated: {
             /** Format: int64 */
             currentOffer: number;
@@ -404,6 +665,8 @@ export interface components {
             maxRounds: number;
             messages: components["schemas"]["Message"][];
             roomType: components["schemas"]["Ref"];
+            /** Format: int32 */
+            rooms: number;
             /** Format: int32 */
             round: number;
             /** @enum {string} */
@@ -441,11 +704,38 @@ export interface components {
             /** Format: uuid */
             stayRequestId: string;
             town: string;
-        } | null;
+        };
         Policies: {
             checkInNotes: string | null;
             coupleFriendly: boolean;
             localIdOk: boolean;
+        };
+        PriceRange: {
+            /** Format: int32 */
+            bookings: number;
+            /** Format: int64 */
+            high: number;
+            /** Format: int64 */
+            low: number;
+        } | null;
+        PromoPreview: {
+            code: string;
+            /** Format: int64 */
+            discount: number;
+            /** Format: int64 */
+            payNow: number;
+        };
+        PublicReview: {
+            /** Format: int32 */
+            stars: number;
+            stayedIn: string;
+            tags: ("CLEAN" | "WARM" | "QUIET" | "FRIENDLY_DESK" | "AS_SHOWN")[];
+            text: string | null;
+        };
+        Rating: {
+            /** Format: int32 */
+            count: number;
+            value: number | null;
         };
         Ref: {
             /** Format: uuid */
@@ -457,6 +747,20 @@ export interface components {
             amount: number;
             status: string;
         } | null;
+        ReviewBody: {
+            /** Format: int32 */
+            stars: number;
+            tags: ("CLEAN" | "WARM" | "QUIET" | "FRIENDLY_DESK" | "AS_SHOWN")[];
+            text: string | null;
+        };
+        ReviewState: {
+            /** Format: date-time */
+            closesAt: string | null;
+            hotelName: string;
+            review: components["schemas"]["MyReview"];
+            /** @enum {string} */
+            status: "NOT_YET" | "OPEN" | "DONE" | "CLOSED" | "NOT_ELIGIBLE";
+        };
         RoomOption: {
             /** Format: int64 */
             fromPrice: number;
@@ -465,11 +769,16 @@ export interface components {
             /** Format: int32 */
             maxGuests: number;
             name: string;
+            roomTypeIds: string[];
+            /** Format: int32 */
+            rooms: number;
         };
         RoomSummary: {
             /** Format: uuid */
             id: string;
             name: string;
+            /** Format: int32 */
+            rooms: number;
         };
         SearchResponse: {
             /** Format: date */
@@ -479,6 +788,39 @@ export interface components {
             slotType: "LATE_NIGHT" | "EARLY_MORNING";
             /** Format: uuid */
             stayRequestId: string;
+        };
+        ShareLink: {
+            /** Format: date-time */
+            expiresAt: string;
+            token: string;
+            url: string;
+        };
+        SharedStay: {
+            address: string;
+            /** Format: date-time */
+            arriveAround: string;
+            /** Format: date-time */
+            expiresAt: string;
+            hotelName: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lng: number;
+            /** @enum {string} */
+            status: "WAITING" | "CONFIRMED" | "CHECKED_IN" | "FINISHED" | "ENDED";
+            town: string;
+        };
+        StartRequest: {
+            phone: string;
+        };
+        Started: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            resendAfterSeconds: number;
+            sent: boolean;
         };
         Stay: {
             /** Format: date-time */
@@ -504,6 +846,39 @@ export interface components {
             /** Format: uuid */
             stayRequestId: string;
         } | null;
+        TagCount: {
+            /** Format: int32 */
+            count: number;
+            /** @enum {string} */
+            tag: "CLEAN" | "WARM" | "QUIET" | "FRIENDLY_DESK" | "AS_SHOWN";
+        };
+        TownHotel: {
+            address: string;
+            amenities: string[];
+            name: string;
+            photo: string | null;
+            priceRange: components["schemas"]["PriceRange"];
+            rating: number | null;
+            /** Format: int32 */
+            reviewCount: number;
+            slug: string;
+        };
+        TownPage: {
+            hotels: components["schemas"]["TownHotel"][];
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lng: number;
+            name: string;
+            priceRange: components["schemas"]["PriceRange"];
+            slug: string;
+        };
+        TownSummary: {
+            /** Format: int32 */
+            hotels: number;
+            name: string;
+            slug: string;
+        };
         VerifyPaymentRequest: {
             orderId: string;
             paymentId: string;
@@ -564,7 +939,163 @@ export interface operations {
             };
         };
     };
+    arrived: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BookingView"];
+                };
+            };
+        };
+    };
     cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BookingView"];
+                };
+            };
+        };
+    };
+    state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReviewState"];
+                };
+            };
+        };
+    };
+    submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyReview"];
+                };
+            };
+        };
+    };
+    current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShareLink"];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShareLink"];
+                };
+            };
+        };
+    };
+    turnOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    turnedAway: {
         parameters: {
             query?: never;
             header?: never;
@@ -609,6 +1140,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["BookingView"];
                 };
+            };
+        };
+    };
+    event: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventBody"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -750,7 +1303,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -772,6 +1325,102 @@ export interface operations {
             };
         };
     };
+    preview: {
+        parameters: {
+            query: {
+                code: string;
+            };
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PromoPreview"];
+                };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Started"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query: {
+                phone: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DeviceStatus"];
+                };
+            };
+        };
+    };
+    check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": Record<string, never>;
+                };
+            };
+        };
+    };
     search: {
         parameters: {
             query: {
@@ -781,6 +1430,10 @@ export interface operations {
                 leave: string;
                 guests?: number;
                 filters?: string;
+                utm_source?: string;
+                utm_medium?: string;
+                utm_campaign?: string;
+                aid?: string;
             };
             header?: never;
             path?: never;
@@ -795,6 +1448,94 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SearchResponse"];
+                };
+            };
+        };
+    };
+    attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttributionBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SharedStay"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TownSummary"][];
+                };
+            };
+        };
+    };
+    page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TownPage"];
                 };
             };
         };

@@ -2,5 +2,7 @@ package com.latestay.hotel;
 
 public enum AvailabilitySource {
     WHATSAPP,
-    ADMIN
+    ADMIN,
+    // The owner page (signed in by WhatsApp link)
+    OWNER_PAGE
 }

@@ -8,6 +8,7 @@ import com.latestay.hotel.HotelPolicies;
 import com.latestay.hotel.Json;
 import com.latestay.negotiation.NegotiationEngine;
 import com.latestay.negotiation.NegotiationSession;
+import com.latestay.negotiation.PricingContext;
 import com.latestay.negotiation.PricingPolicy;
 import com.latestay.negotiation.SessionSnapshot;
 import com.latestay.negotiation.SessionStatus;
@@ -47,14 +48,22 @@ public class JdbcConversationRepository implements ConversationRepository {
 
     /** Inserts a newly opened session and its opening bot turn. */
     public void create(NegotiationSession session, UUID stayRequestId, UUID roomTypeId, NewTurn opening) {
+        create(session, stayRequestId, List.of(roomTypeId), opening);
+    }
+
+    /** As above for one or two rooms (line 1 is the session's room_type_id). */
+    public void create(NegotiationSession session, UUID stayRequestId, List<UUID> roomTypeIds, NewTurn opening) {
+        UUID roomTypeId = roomTypeIds.getFirst();
         SessionSnapshot s = session.snapshot();
         PricingPolicy policy = s.policy();
         jdbc.sql("""
                         INSERT INTO negotiation_session (id, stay_request_id, room_type_id, status, current_offer,
                                agreed_price, round, list_price, floor_price, slot_type, max_rounds, round_to,
-                               arrival_time, expires_at, created_at, updated_at)
+                               arrival_time, expires_at, created_at, updated_at, pricing_version, rooms_free,
+                               total_rooms, demand_percent, rooms)
                         VALUES (:id, :stayRequest, :roomType, :status, :offer, :agreed, :round, :list, :floor, :slot,
-                                :maxRounds, :roundTo, :arrival, :expires, :created, :created)""")
+                                :maxRounds, :roundTo, :arrival, :expires, :created, :created, :version, :roomsFree,
+                                :totalRooms, :demand, :rooms)""")
                 .param("id", UUID.fromString(s.id()))
                 .param("stayRequest", stayRequestId)
                 .param("roomType", roomTypeId)
@@ -70,7 +79,19 @@ public class JdbcConversationRepository implements ConversationRepository {
                 .param("arrival", s.arrival())
                 .param("expires", s.expiresAt().atOffset(java.time.ZoneOffset.UTC))
                 .param("created", s.createdAt().atOffset(java.time.ZoneOffset.UTC))
+                .param("version", policy.context().version())
+                .param("roomsFree", policy.context().roomsFree())
+                .param("totalRooms", policy.context().totalRooms())
+                .param("demand", policy.context().demandPercent())
+                .param("rooms", roomTypeIds.size())
                 .update();
+        for (int i = 0; i < roomTypeIds.size(); i++) {
+            jdbc.sql("""
+                            INSERT INTO negotiation_room (session_id, line_no, room_type_id, list_price)
+                            SELECT :id, :line, id, list_price FROM room_type WHERE id = :roomType""")
+                    .param("id", UUID.fromString(s.id())).param("line", i + 1).param("roomType", roomTypeIds.get(i))
+                    .update();
+        }
         insertTurns(s.id(), List.of(opening));
     }
 
@@ -84,7 +105,9 @@ public class JdbcConversationRepository implements ConversationRepository {
                                s.stay_request_id, h.id AS hotel_id, h.slug, h.name AS hotel_name, h.town,
                                (SELECT url FROM hotel_photo p WHERE p.hotel_id = h.id ORDER BY sort_order LIMIT 1)
                                    AS photo,
-                               r.id AS room_id, r.name AS room_name
+                               r.id AS room_id, s.rooms,
+                               (SELECT string_agg(rt.name, ' + ' ORDER BY nr.line_no) FROM negotiation_room nr
+                                JOIN room_type rt ON rt.id = nr.room_type_id WHERE nr.session_id = s.id) AS room_name
                         FROM negotiation_session s
                         JOIN room_type r ON r.id = s.room_type_id
                         JOIN hotel h ON h.id = r.hotel_id
@@ -101,7 +124,8 @@ public class JdbcConversationRepository implements ConversationRepository {
                         rs.getObject("stay_request_id", UUID.class),
                         new NegotiationView.HotelSummary(rs.getObject("hotel_id", UUID.class), rs.getString("slug"),
                                 rs.getString("hotel_name"), rs.getString("town"), rs.getString("photo")),
-                        new NegotiationView.RoomSummary(rs.getObject("room_id", UUID.class), rs.getString("room_name")),
+                        new NegotiationView.RoomSummary(rs.getObject("room_id", UUID.class), rs.getString("room_name"),
+                                rs.getInt("rooms")),
                         List.of()))
                 .optional();
         return view.map(v -> new NegotiationView(v.id(), v.status(), v.currentOffer(), v.agreedPrice(), v.round(),
@@ -164,15 +188,22 @@ public class JdbcConversationRepository implements ConversationRepository {
             params.put("seq", seq++);
             params.put("role", turn.role() == ChatMessage.Sender.TRAVELLER ? "TRAVELLER" : "BOT");
             params.put("text", turn.text());
+            var spend = turn.spend();
+            params.put("calls", spend == null ? null : spend.calls());
+            params.put("input", spend == null ? null : spend.inputTokens());
+            params.put("output", spend == null ? null : spend.outputTokens());
+            params.put("model", spend == null ? null : spend.model());
+            params.put("cost", spend == null ? null : spend.costMicroUsd());
             params.put("intent", turn.intent() == null ? null : Json.write(intentJson(turn.intent())));
             params.put("decision", turn.decision() == null ? null : Json.write(turn.decision()));
             params.put("validator", turn.validatorResult());
             params.put("latency", turn.latencyMs());
             jdbc.sql("""
                             INSERT INTO negotiation_turn (session_id, seq, role, text, intent, decision,
-                                                          validator_result, latency_ms)
+                                                          validator_result, latency_ms, llm_calls, input_tokens,
+                                                          output_tokens, model, llm_cost_micro_usd)
                             VALUES (:session, :seq, :role, :text, CAST(:intent AS jsonb), CAST(:decision AS jsonb),
-                                    :validator, :latency)""")
+                                    :validator, :latency, :calls, :input, :output, :model, :cost)""")
                     .params(params).update();
         }
     }
@@ -201,7 +232,9 @@ public class JdbcConversationRepository implements ConversationRepository {
 
     private Conversation mapConversation(ResultSet rs, int row) throws SQLException {
         PricingPolicy policy = new PricingPolicy(rs.getLong("list_price"), rs.getLong("floor_price"),
-                SlotType.valueOf(rs.getString("slot_type")), rs.getInt("max_rounds"), rs.getInt("round_to"));
+                SlotType.valueOf(rs.getString("slot_type")), rs.getInt("max_rounds"), rs.getInt("round_to"),
+                new PricingContext(rs.getInt("pricing_version"), rs.getInt("rooms_free"), rs.getInt("total_rooms"),
+                        rs.getInt("demand_percent")));
         Long agreed = rs.getObject("agreed_price") == null ? null : rs.getLong("agreed_price");
         SessionSnapshot snapshot = new SessionSnapshot(
                 rs.getObject("id", UUID.class).toString(),

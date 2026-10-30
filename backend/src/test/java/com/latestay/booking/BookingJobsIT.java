@@ -78,22 +78,42 @@ class BookingJobsIT extends BookingItSupport {
         assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.HOTEL_CONFIRMED);
     }
 
+    /**
+     * Replaces the old automatic NO_SHOW: an hour after arrive_by (00:30 IST) the owner is asked; nobody answers, so
+     * at 10:00 the next morning the booking completes and the hotel keeps the deposit.
+     */
     @Test
-    void confirmedGuestWhoNeverArrivesIsANoShowAnHourAfterArriveByAndKeepsNoDeposit() {
+    void anUnansweredArrivalCheckCompletesTheBookingAtTenTheNextMorning() {
         BookingCreated created = booked();
         fixtures.pay(created);
         bookings.confirm(created.bookingId());
 
         clock.set(Instant.parse("2026-11-11T20:00:00Z").minus(SECOND)); // 01:29:59 IST
-        jobs.markNoShows();
-        assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.HOTEL_CONFIRMED);
+        jobs.sendArrivalChecks();
+        assertThat(arrivalCheckSent(created)).isFalse();
 
         clock.set(Instant.parse("2026-11-11T20:00:00Z")); // 01:30 IST = arrive_by + 60 min
-        jobs.markNoShows();
+        jobs.sendArrivalChecks();
+        jobs.sendArrivalChecks();
+        assertThat(arrivalCheckSent(created)).isTrue();
+        assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.HOTEL_CONFIRMED);
+
+        clock.set(Instant.parse("2026-11-12T04:30:00Z").minus(SECOND)); // 09:59:59 IST
+        jobs.completeUnanswered();
+        assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.HOTEL_CONFIRMED);
+
+        clock.set(Instant.parse("2026-11-12T04:30:00Z")); // 10:00 IST on the 12th
+        jobs.completeUnanswered();
         jobs.issueRefunds();
-        assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.NO_SHOW);
+        assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.COMPLETED);
+        assertThat(events(created.bookingId())).last().isEqualTo("HOTEL_CONFIRMED->COMPLETED by JOB");
         assertThat(payment(created.bookingId())).containsEntry("status", "CAPTURED");
         assertThat(gateway.refundCalls(TestBookings.paymentIdFor(created))).isZero();
+    }
+
+    boolean arrivalCheckSent(BookingCreated created) {
+        return jdbc.sql("SELECT arrival_check_sent_at IS NOT NULL FROM booking WHERE id = :id")
+                .param("id", created.bookingId()).query(Boolean.class).single();
     }
 
     @Test
@@ -106,9 +126,10 @@ class BookingJobsIT extends BookingItSupport {
         clock.set(Instant.parse("2026-11-11T18:10:00Z"));
         bookings.checkIn(created.bookingId(), code);
 
-        // Checked-in guests are never no-shows.
+        // Checked-in guests get no arrival check and don't complete before they leave.
         clock.set(Instant.parse("2026-11-12T03:30:00Z").minus(SECOND));
-        jobs.markNoShows();
+        jobs.sendArrivalChecks();
+        jobs.completeUnanswered();
         jobs.completeStays();
         assertThat(statusOf(created.bookingId())).isEqualTo(BookingStatus.CHECKED_IN);
 
@@ -179,7 +200,8 @@ class BookingJobsIT extends BookingItSupport {
 
         clock.set(Instant.parse("2026-11-12T12:00:00Z"));
         jobs.timeoutUnconfirmed();
-        jobs.markNoShows();
+        jobs.sendArrivalChecks();
+        jobs.completeUnanswered();
         jobs.completeStays();
         assertThat(statusOf(pending.bookingId())).isEqualTo(BookingStatus.PENDING_PAYMENT);
         jobs.expireUnpaid();

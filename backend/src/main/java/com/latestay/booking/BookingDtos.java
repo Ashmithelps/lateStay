@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /** Public request and response bodies for /api/bookings. Money in rupees unless named paise. */
@@ -18,7 +19,27 @@ public final class BookingDtos {
 
     /** @param idConsent the traveller ticked "I'll carry a photo ID for every guest" */
     public record CreateBookingRequest(@NotNull UUID sessionId, @NotBlank @Size(max = 80) String guestName,
-            @NotBlank @Size(max = 20) String phone, @AssertTrue boolean idConsent) {
+            @NotBlank @Size(max = 20) String phone, @AssertTrue boolean idConsent,
+            @Schema(description = "The traveller ticked \"Send my booking pass and updates on WhatsApp\"",
+                    nullable = true) Boolean whatsappUpdates,
+            @Schema(description = "A promo code, taken off the deposit", nullable = true) @Size(max = 40) String promoCode) {
+
+        public CreateBookingRequest(UUID sessionId, String guestName, String phone, boolean idConsent) {
+            this(sessionId, guestName, phone, idConsent, null, null);
+        }
+
+        public CreateBookingRequest(UUID sessionId, String guestName, String phone, boolean idConsent,
+                Boolean whatsappUpdates) {
+            this(sessionId, guestName, phone, idConsent, whatsappUpdates, null);
+        }
+
+        String promo() {
+            return promoCode == null || promoCode.isBlank() ? null : com.latestay.promo.Promos.normalise(promoCode);
+        }
+
+        boolean wantsWhatsAppUpdates() {
+            return Boolean.TRUE.equals(whatsappUpdates);
+        }
     }
 
     /** {@code checkout} is null once the booking is past payment (the web app goes straight to the pass). */
@@ -42,7 +63,8 @@ public final class BookingDtos {
     /**
      * A booking as the traveller's pass shows it. Times are local (Asia/Kolkata). {@code code} is only present once
      * the hotel has confirmed; {@code nextBest} only when the booking fell through; {@code refundedFrom} says why a
-     * REFUNDED booking was refunded (HOTEL_DECLINED, HOTEL_TIMEOUT or CANCELLED).
+     * REFUNDED booking was refunded (HOTEL_DECLINED, HOTEL_TIMEOUT or CANCELLED); {@code alternatives} are up to
+     * three hotels with rooms right now, after a Rescue (HOTEL_FAILED).
      */
     /** {@code phone} is null once it has been deleted, 90 days after the stay. */
     public record BookingView(UUID id, UUID sessionId, BookingStatus status, HotelInfo hotel, String roomType,
@@ -50,7 +72,16 @@ public final class BookingDtos {
             LocalDateTime leaveAt, long agreedPrice, long depositAmount, long payAtDesk,
             @Schema(nullable = true) String code, Instant payBy, @Schema(nullable = true) Instant confirmBy,
             @Schema(nullable = true) Refund refund, @Schema(nullable = true) NextBest nextBest,
-            @Schema(nullable = true) BookingStatus refundedFrom) {
+            @Schema(nullable = true) BookingStatus refundedFrom, @Schema(nullable = true) String disputeReason,
+            Actions actions, List<NextBest> alternatives) {
+    }
+
+    /**
+     * What the traveller can do now. {@code cancel}: before the hotel confirms (full refund). {@code turnedAway}:
+     * confirmed and the arrival time has come. {@code didArrive}: the hotel said no-show and there's been no
+     * dispute yet.
+     */
+    public record Actions(boolean cancel, boolean turnedAway, boolean didArrive) {
     }
 
     /**

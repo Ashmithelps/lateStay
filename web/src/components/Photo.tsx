@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { isUploadedPhoto, uploadedPhotoLoader } from "@/lib/photo-loader";
 import { cx } from "./ui";
 
 /**
@@ -24,6 +25,8 @@ export function Photo({ src, alt, sizes, priority, eager, className }: {
         <Image
           src={src}
           alt={alt}
+          // Uploaded photos already exist at 400, 800 and 1600 px: use those files directly.
+          loader={isUploadedPhoto(src) ? uploadedPhotoLoader : undefined}
           fill
           sizes={sizes}
           preload={priority}

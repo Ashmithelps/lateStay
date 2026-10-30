@@ -14,9 +14,21 @@ import { cx, focusRing } from "./ui";
 type Props = {
   initial: SearchState;
   section: SearchSection;
+  /** Shown above the town list, e.g. when "I need a room now" couldn't get the location. */
+  notice?: string;
   onClose: () => void;
   onSearch: (search: SearchState) => void;
 };
+
+/** The options plus the current value, if it isn't on the half-hour list (e.g. 11:45 pm from "room now"). */
+function withTime(options: string[], value: string): string[] {
+  if (options.includes(value)) return options;
+  const night = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return ((h < 12 ? h + 24 : h) * 60 + m);
+  };
+  return [...options, value].sort((a, b) => night(a) - night(b));
+}
 
 const FOCUSABLE = 'button:not([disabled]), select, input, a[href], [tabindex]:not([tabindex="-1"])';
 
@@ -59,7 +71,7 @@ function TimeSelect({ id, label, value, options, onChange }: {
  * button so the pill keeps the screen's only ember button.
  */
 /** Render only while open: it starts from `initial` each time it mounts. */
-export function SearchSheet({ initial, section, onClose, onSearch }: Props) {
+export function SearchSheet({ initial, section, notice, onClose, onSearch }: Props) {
   const [draft, setDraft] = useState(initial);
   const [locating, setLocating] = useState<"idle" | "busy" | "denied">("idle");
   const panel = useRef<HTMLDivElement>(null);
@@ -144,6 +156,11 @@ export function SearchSheet({ initial, section, onClose, onSearch }: Props) {
           <h3 id="where-title" className="text-14 font-semibold text-ink">
             Where
           </h3>
+          {notice && (
+            <p role="status" className="mt-1 text-14 text-ink-secondary">
+              {notice}
+            </p>
+          )}
           <ul className="mt-2 space-y-1">
             <li>
               <button type="button" className={placeRow(draft.place === "here")} onClick={useMyLocation} aria-pressed={draft.place === "here"}>
@@ -180,7 +197,7 @@ export function SearchSheet({ initial, section, onClose, onSearch }: Props) {
               id="arrive"
               label="Arrive"
               value={draft.arrive}
-              options={ARRIVAL_TIMES}
+              options={withTime(ARRIVAL_TIMES, draft.arrive)}
               onChange={(arrive) => setDraft((d) => ({ ...d, arrive, leave: fitLeave(arrive, d.leave) }))}
             />
             <TimeSelect

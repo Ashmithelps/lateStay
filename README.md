@@ -3,7 +3,8 @@
 Travellers who reach Indian hill stations late at night haggle with an AI agent (acting for the hotel) for a room for part of the night.
 
 - `backend/`: Spring Boot 3.5, Java 21, Gradle
-- `web/`: Next.js traveller PWA
+- `web/`: Next.js traveller PWA (plus `/admin` and the hotel owner's `/owner` page)
+- `imaging/`: photo processor (Node + sharp) for admin uploads; `docker compose up imaging photos` runs it with a local S3 bucket
 - `sim/`: negotiation simulator (Python 3.12, uv); see [sim/README.md](sim/README.md). `make sim-offline` runs it without an API key
 - `docs/`: [DESIGN.md](docs/DESIGN.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [DEPLOY.md](docs/DEPLOY.md) (production: Fly.io, Supabase, Vercel, every env var), [whatsapp-templates.md](docs/whatsapp-templates.md)
 
@@ -85,8 +86,12 @@ An agreed negotiation becomes a booking: a deposit of min(₹200, agreed price) 
 PENDING_PAYMENT -> DEPOSIT_PAID -> HOTEL_CONFIRMED -> CHECKED_IN -> COMPLETED
 PENDING_PAYMENT -> EXPIRED (unpaid after 10 min) | CANCELLED
 DEPOSIT_PAID    -> HOTEL_DECLINED | HOTEL_TIMEOUT (5 min) | CANCELLED -> REFUNDED
-HOTEL_CONFIRMED -> NO_SHOW (60 min after arrive-by, deposit kept)
+HOTEL_CONFIRMED -> arrival check to the owner 60 min after arrive-by:
+                   Arrived / the code -> CHECKED_IN, Didn't arrive -> NO_SHOW, no reply by 10:00 -> COMPLETED
+NO_SHOW or "turned away" -> DISPUTED -> settled by an admin; admin Rescue -> HOTEL_FAILED (refund)
 ```
+
+Agreeing a price holds the room for 10 minutes (no double booking of the last room). Before paying, the traveller verifies their number with a WhatsApp code; with the local profile and no WhatsApp keys, read it from `GET /api/dev/phone-verifications/latest?phone=...`. All states are described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#booking-states).
 
 Razorpay test mode: set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` in `backend/.env`. In the Razorpay dashboard (Test Mode), add a webhook for `payment.captured` and `refund.processed` pointing at `https://<public url>/api/webhooks/razorpay` (for local work, through a tunnel such as `cloudflared` or `ngrok`). Without keys, the local profile uses a fake gateway: the web app completes the payment through `POST /api/dev/payments/<orderId>/pay` and refunds are processed at once.
 
@@ -96,7 +101,7 @@ Admin panel: `http://localhost:3000/admin`, signing in with `ADMIN_USERNAME` / `
 
 Owners use WhatsApp only (WhatsApp Business Cloud API). At 21:00 India time every active hotel gets the `nightly_availability` template ("How many rooms are free tonight?", buttons 0 / 1 / 2 / 3+); owners can also just type `rooms 2` or `2 room khali`. **A hotel that hasn't answered for tonight doesn't show in search.** When a deposit is paid the owner gets `booking_request` with Confirm / Can't take it buttons; no answer within 5 minutes refunds the traveller. Every message in and out is stored in `whatsapp_message` and shown per hotel in the admin panel (Hotels tab), which also has "Send availability ping now".
 
-An owner is recognised by the hotel's `whatsapp_number` (with country code, e.g. `+91 98765 43210`); messages from other numbers are logged and ignored. The three templates must be approved by Meta first: their exact text, category and buttons are in [docs/whatsapp-templates.md](docs/whatsapp-templates.md).
+An owner is recognised by the hotel's `whatsapp_number` (with country code, e.g. `+91 98765 43210`); messages from other numbers are logged and ignored. The templates must be approved by Meta first: their exact text, category and buttons are in [docs/whatsapp-templates.md](docs/whatsapp-templates.md).
 
 Set up (Meta developer account, a Meta app with the WhatsApp product):
 
@@ -121,6 +126,14 @@ curl -X POST localhost:8080/api/dev/whatsapp/inbound -H 'Content-Type: applicati
 ```
 
 The quick tunnel's URL changes every time it starts; update the callback URL in the Meta app when it does.
+
+**Owner page.** An owner who sends `hisaab` (or `account`, `earnings`) gets a sign-in link valid once for 15 minutes; it opens `/owner` (tonight's guests, rooms free, earnings and payouts, lowest prices) for 30 days on that phone. The WhatsApp log shows sent links redacted, so locally get one from the dev endpoint (local profile only) and open it:
+
+```sh
+curl -X POST 'localhost:8080/api/dev/owner-links?hotel=<hotel slug>'   # {"url":"http://localhost:3000/owner/login?t=…"}
+```
+
+Weekly settlements are made on Mondays at 10:00 India time (admin panel, Payouts tab: mark paid with the UPI reference, download the CSV).
 
 ### Dev negotiation API (local profile only)
 

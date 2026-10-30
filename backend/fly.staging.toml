@@ -1,0 +1,39 @@
+# Fly.io, staging: `fly deploy --config fly.staging.toml` from backend/ (GitHub Actions does it on every push to
+# main). Same image as production, with the staging profile: seeded hotels, Razorpay test keys only.
+app = "latestay-api-staging"
+# Singapore: Fly has no region in India; this is the nearest.
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SPRING_PROFILES_ACTIVE = "prod,staging"
+  APP_ENV = "staging"
+  PORT = "8080"
+  SENTRY_ENVIRONMENT = "staging"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Always one machine: the 21:00 WhatsApp ping and the 15-second booking jobs run inside the app, and the rate
+  # limits are kept in memory. Don't scale beyond one machine without moving both.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "90s"
+    interval = "15s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

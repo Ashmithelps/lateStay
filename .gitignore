@@ -32,4 +32,6 @@ yarn-error.log*
 .DS_Store
 
 # Simulator output
-sim/reports/
+# Simulator runs; the pricing comparison is kept.
+sim/reports/*
+!sim/reports/pricing-compare.md

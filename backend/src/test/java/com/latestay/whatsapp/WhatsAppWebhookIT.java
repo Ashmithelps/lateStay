@@ -126,6 +126,70 @@ class WhatsAppWebhookIT extends WhatsAppItSupport {
     }
 
     @Test
+    void oneToThreeDigitsAreRoomCounts() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "2");
+        assertThat(reported(hotel.id(), TONIGHT)).isEqualTo(2);
+        say(hotel, "12");
+        assertThat(reported(hotel.id(), TONIGHT)).isEqualTo(12);
+        say(hotel, "rooms 3");
+        assertThat(reported(hotel.id(), TONIGHT)).isEqualTo(3);
+    }
+
+    @Test
+    void aCountAboveFiftyIsRefusedWithTheLimit() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "120");
+        assertThat(reported(hotel.id(), TONIGHT)).isNull();
+        assertThat(outboundTexts(hotel.id())).containsExactly(
+                "Send a number from 0 to 50 for the rooms free tonight, like \"rooms 2\".");
+        assertThat(rows(hotel.id()).getFirst()).containsEntry("error", "too many rooms");
+    }
+
+    @Test
+    void fourDigitsMatchingNoBookingGetHelpAndChangeNothing() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "4821");
+        say(hotel, "code 4821");
+        assertThat(reported(hotel.id(), TONIGHT)).isNull();
+        assertThat(outboundTexts(hotel.id())).containsExactly(OwnerMessageHandler.HELP, OwnerMessageHandler.HELP);
+    }
+
+    @Test
+    void longerNumbersAndOtherTextGetHelp() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "48210");
+        say(hotel, "rooms for 3 nights?");
+        assertThat(reported(hotel.id(), TONIGHT)).isNull();
+        assertThat(outboundTexts(hotel.id())).containsExactly(OwnerMessageHandler.HELP, OwnerMessageHandler.HELP);
+    }
+
+    @Test
+    void hisaabRepliesWithASignInLinkThatIsRedactedOnceSent() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "hisaab");
+        String reply = outboundTexts(hotel.id()).getFirst();
+        assertThat(reply).startsWith("Your LateStay account for Pine Crest: https://latestay.test/owner/login?t=")
+                .contains("works once, for the next 15 minutes");
+        String token = reply.replaceAll("(?s).*login\\?t=([A-Za-z0-9_-]+).*", "$1");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/owner/session").contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"token\": \"" + token + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.hotelName").value("Pine Crest"));
+
+        drain();
+        assertThat(outboundTexts(hotel.id()).getFirst()).contains("login?t=[redacted]").doesNotContain(token);
+        assertThat(whatsApp.sent).anySatisfy(m -> assertThat(m.toString()).contains(token));
+    }
+
+    @Test
+    void accountAndEarningsAskForTheLinkToo() throws Exception {
+        Hotel hotel = hotel();
+        say(hotel, "Account");
+        say(hotel, "my earnings");
+        assertThat(outboundTexts(hotel.id())).hasSize(2).allSatisfy(t -> assertThat(t).contains("/owner/login?t="));
+    }
+
+    @Test
     void anOwnerOfTwoHotelsMustUseTheButton() throws Exception {
         Hotel first = hotel();
         Hotel second = hotels.hotel("Pine Crest Annexe", first.lat() + 0.01, first.lng(), List.of(),

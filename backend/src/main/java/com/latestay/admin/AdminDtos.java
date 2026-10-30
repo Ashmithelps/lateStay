@@ -48,25 +48,25 @@ final class AdminDtos {
             @NotBlank @Pattern(regexp = "\\+?[0-9 ]{8,16}") String whatsappNumber,
             List<@Pattern(regexp = "[a-z][a-z0-9_]*") String> amenities,
             @Valid PoliciesBody policies,
-            @DecimalMin("0") @DecimalMax("5") BigDecimal rating,
+            @Min(1) @Max(500) Integer totalRooms,
             Boolean active,
             List<@NotBlank String> photos) {
 
         Hotel toHotel() {
             return new Hotel(null, name, slug, town, address, lat, lng, whatsappNumber,
                     amenities == null ? List.of() : amenities,
-                    policies == null ? HotelPolicies.NONE : policies.toPolicies(), rating,
+                    policies == null ? HotelPolicies.NONE : policies.toPolicies(), totalRooms == null ? 10 : totalRooms,
                     active == null || active, photos == null ? List.of() : photos);
         }
     }
 
     record HotelView(UUID id, String name, String slug, String town, String address, double lat, double lng,
-            String whatsappNumber, List<String> amenities, PoliciesBody policies, BigDecimal rating, boolean active,
+            String whatsappNumber, List<String> amenities, PoliciesBody policies, int totalRooms, boolean active,
             List<String> photos) {
 
         static HotelView of(Hotel h) {
             return new HotelView(h.id(), h.name(), h.slug(), h.town(), h.address(), h.lat(), h.lng(),
-                    h.whatsappNumber(), h.amenities(), PoliciesBody.of(h.policies()), h.rating(), h.active(),
+                    h.whatsappNumber(), h.amenities(), PoliciesBody.of(h.policies()), h.totalRooms(), h.active(),
                     h.photos());
         }
     }

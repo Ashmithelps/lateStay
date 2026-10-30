@@ -33,6 +33,31 @@ public class StayRequestRepository {
         return new StayRequest(id, lat, lng, window, guests, filters);
     }
 
+    /**
+     * Tags a stay request made without them (the server-rendered first search) with the browser's UTM tags and
+     * analytics id: first write wins, and only within an hour of the search (created_at is the database's time).
+     */
+    public boolean attributeIfUntagged(UUID id, Attribution a) {
+        return jdbc.sql("""
+                        UPDATE stay_request SET utm_source = :source, utm_medium = :medium, utm_campaign = :campaign,
+                               analytics_id = :aid
+                        WHERE id = :id AND analytics_id IS NULL AND utm_source IS NULL
+                          AND created_at > now() - interval '1 hour'""")
+                .param("id", id).param("source", a.utmSource()).param("medium", a.utmMedium())
+                .param("campaign", a.utmCampaign()).param("aid", a.analyticsId())
+                .update() == 1;
+    }
+
+    /** First-touch UTM tags, the analytics id and the search's town (the nearest result's). */
+    public void attribute(UUID id, Attribution a, String town) {
+        jdbc.sql("""
+                        UPDATE stay_request SET utm_source = :source, utm_medium = :medium, utm_campaign = :campaign,
+                               analytics_id = :aid, town = :town
+                        WHERE id = :id""")
+                .param("id", id).param("source", a.utmSource()).param("medium", a.utmMedium())
+                .param("campaign", a.utmCampaign()).param("aid", a.analyticsId()).param("town", town).update();
+    }
+
     public Optional<StayRequest> find(UUID id) {
         return jdbc.sql("""
                         SELECT id, ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng, arrive_at,

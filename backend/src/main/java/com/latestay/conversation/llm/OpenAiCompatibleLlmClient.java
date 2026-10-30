@@ -67,4 +67,9 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         JsonNode usage = response.path("usage");
         return new LlmResponse(content, usage.path("prompt_tokens").asLong(0), usage.path("completion_tokens").asLong(0));
     }
+
+    @Override
+    public String model() {
+        return model;
+    }
 }

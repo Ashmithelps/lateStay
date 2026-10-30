@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { analyticsId, firstTouch } from "./attribution";
 import {
   api,
   type BookingPreview,
@@ -23,7 +24,17 @@ export function useSearchResults(query: SearchQuery, initial?: InitialSearch) {
   const matches = initial !== undefined && JSON.stringify(initial.query) === JSON.stringify(query);
   return useQuery({
     queryKey: ["search", query],
-    queryFn: () => api.search(query),
+    // Searches made here carry this browser's first-touch UTM tags and analytics id (not part of the cache key).
+    queryFn: () => {
+      const touch = firstTouch();
+      return api.search({
+        ...query,
+        utm_source: touch.utmSource ?? undefined,
+        utm_medium: touch.utmMedium ?? undefined,
+        utm_campaign: touch.utmCampaign ?? undefined,
+        aid: analyticsId(),
+      });
+    },
     initialData: matches ? initial.data : undefined,
     // Each search records a stay request: don't repeat it on focus or remount.
     staleTime: Infinity,
@@ -66,6 +77,7 @@ export function isWaiting(booking: BookingView): boolean {
   return (
     booking.status === "PENDING_PAYMENT" ||
     booking.status === "DEPOSIT_PAID" ||
+    booking.status === "DISPUTED" ||
     booking.refund?.status === "PENDING"
   );
 }

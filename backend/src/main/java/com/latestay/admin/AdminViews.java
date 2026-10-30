@@ -18,7 +18,9 @@ final class AdminViews {
             String guestName, String phone, int guests, LocalDateTime arriveAt, LocalDateTime arriveBy,
             LocalDateTime leaveAt, long agreedPrice, long depositAmount, long payAtDesk, long commissionAmount,
             String code, Instant payBy, Instant confirmBy, String paymentStatus, String razorpayPaymentId,
-            String refundId, Instant createdAt, Instant updatedAt, UUID sessionId) {
+            String refundId, Instant createdAt, Instant updatedAt, UUID sessionId, String disputeReason,
+            Instant disputedAt, Instant arrivalCheckSentAt, int hotelFailures, Instant hideUntil,
+            Instant keepHiddenAt) {
     }
 
     record AdminBookingDetail(AdminBooking booking, List<BookingEvent> events) {
@@ -37,8 +39,9 @@ final class AdminViews {
     record AdminTranscript(AdminNegotiation negotiation, List<AdminTurn> turns) {
     }
 
+    /** {@code roomsFree} is the owner's report; {@code available} subtracts holds and bookings made since. */
     record AvailabilityRow(UUID hotelId, String hotelName, String town, boolean active, Integer roomsFree,
-            Instant reportedAt, String source) {
+            Instant reportedAt, String source, int available, int reliabilityFailures) {
     }
 
     record Tonight(LocalDate nightOf, List<AvailabilityRow> hotels) {

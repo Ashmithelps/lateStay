@@ -132,11 +132,13 @@ class SearchIT {
     }
 
     @Test
-    void findsHotelsWithin10kmSortedByDistanceThenPrice() throws Exception {
+    void findsHotelsWithin10kmRankedByDistanceBandThenReliabilityThenPrice() throws Exception {
         JsonNode response = lateSearch(2, null);
 
-        assertThat(names(response)).containsExactly("Near Heater", "Late Only", "Mid Parking", "Same Point Cheap",
-                "Same Point Expensive");
+        // Under 1 km; 1-3 km (Mid Parking at just under 3 km, Late Only, then Single Rooms' dearer pair of rooms);
+        // 3 km and more. Every hotel here is new (score 80), so price decides within a band.
+        assertThat(names(response)).containsExactly("Near Heater", "Mid Parking", "Late Only", "Single Rooms",
+                "Same Point Cheap", "Same Point Expensive");
         assertThat(response.path("nightOf").asText()).isEqualTo("2026-11-04");
         assertThat(response.path("slotType").asText()).isEqualTo("LATE_NIGHT");
         JsonNode first = response.path("results").get(0);
@@ -151,10 +153,12 @@ class SearchIT {
 
     @Test
     void excludesFarHotelsZeroRoomsInactiveAndRoomsTooSmall() throws Exception {
-        assertThat(names(lateSearch(2, null))).doesNotContain("Too Far", "Other Town", "Full Up", "Closed Down",
-                "Single Rooms");
+        assertThat(names(lateSearch(2, null))).doesNotContain("Too Far", "Other Town", "Full Up", "Closed Down");
         assertThat(names(lateSearch(1, null))).contains("Single Rooms");
-        assertThat(names(lateSearch(3, null))).containsExactly("Mid Parking");
+        // Three guests: Mid Parking's room sleeps 4; Near Heater offers two of its 2-guest rooms.
+        assertThat(names(lateSearch(3, null))).containsExactly("Near Heater", "Mid Parking");
+        assertThat(lateSearch(3, null).path("results").get(0).path("roomTypes").get(0).path("rooms").asInt())
+                .isEqualTo(2);
     }
 
     @Test
@@ -180,7 +184,7 @@ class SearchIT {
 
     @Test
     void filtersByAmenityAndPolicy() throws Exception {
-        assertThat(names(lateSearch(2, "heater"))).containsExactly("Near Heater");
+        assertThat(names(lateSearch(2, "heater"))).containsExactly("Near Heater", "Single Rooms");
         assertThat(names(lateSearch(2, "parking"))).containsExactly("Near Heater", "Mid Parking");
         assertThat(names(lateSearch(2, "Couple-friendly"))).containsExactly("Near Heater");
         assertThat(names(lateSearch(2, "heater,parking,local_id_ok"))).containsExactly("Near Heater");

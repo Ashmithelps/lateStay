@@ -18,5 +18,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # Hotel photo processing (Node + sharp): JPEG/PNG in, EXIF-free WebP at 400/800/1600 px out.
+  imaging:
+    build: ./imaging
+    container_name: latestay-imaging
+    environment:
+      IMAGING_TOKEN: ${IMAGING_TOKEN:-}
+    ports:
+      - "${IMAGING_PORT:-8081}:8081"
+
+  # Local stand-in for Cloudflare R2 (S3 API, anonymous public reads). Production uses R2 itself.
+  photos:
+    image: adobe/s3mock:4.7.0
+    container_name: latestay-photos
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: latestay-photos
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data
+    ports:
+      - "${PHOTOS_PORT:-9090}:9090"
+    volumes:
+      - latestay-photos:/data
+
 volumes:
   latestay-pgdata:
+  latestay-photos:

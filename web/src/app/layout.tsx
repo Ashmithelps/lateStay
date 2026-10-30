@@ -2,8 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { preconnect } from "react-dom";
+import { AttributionCapture } from "@/components/AttributionCapture";
 import { Providers } from "@/components/Providers";
+import { StagingBar } from "@/components/StagingBar";
 import { API_URL } from "@/lib/api";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -16,6 +19,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "LateStay",
   description: "A room for the rest of the night in the hills.",
   applicationName: "LateStay",
@@ -42,6 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           cacheOnNavigation
           reloadOnOnline={false}
         >
+          <StagingBar />
+          <AttributionCapture />
           <Providers>{children}</Providers>
         </SerwistProvider>
       </body>

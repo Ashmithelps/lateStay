@@ -18,6 +18,8 @@ export type SearchState = {
   leave: string; // HH:mm
   guests: number;
   filters: FilterCode[];
+  /** Came from "I need a room now": results within 3 km get their own heading. */
+  now?: boolean;
 };
 
 export const FILTER_CODES: FilterCode[] = ["heater", "parking", "couple_friendly", "near_bus_stand", "late_check_in"];
@@ -38,6 +40,7 @@ export function readSearch(params: URLSearchParams): SearchState {
     filters: (params.get("filters") ?? "")
       .split(",")
       .filter((f): f is FilterCode => (FILTER_CODES as string[]).includes(f)),
+    now: params.get("now") === "1",
   };
 }
 
@@ -52,6 +55,7 @@ export function writeSearch(state: SearchState): string {
   params.set("leave", state.leave);
   params.set("guests", String(state.guests));
   if (state.filters.length) params.set("filters", state.filters.join(","));
+  if (state.now) params.set("now", "1");
   return params.toString();
 }
 

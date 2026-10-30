@@ -39,8 +39,10 @@ class BookingIT extends BookingItSupport {
     @Autowired
     NegotiationService negotiations;
 
+    /** With this device's "phone verified" cookie for +91 98765 43210 (what the OTP step leaves behind). */
     ResultActions create(UUID sessionId, String name, String phone, boolean idConsent) throws Exception {
-        return mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+        return mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                .cookie(fixtures.phoneCookie(TestBookings.PHONE)).content(json.writeValueAsString(
                 Map.of("sessionId", sessionId, "guestName", name, "phone", phone, "idConsent", idConsent))));
     }
 
@@ -139,7 +141,7 @@ class BookingIT extends BookingItSupport {
         BookingCreated first = fixtures.book(agreed);
         clock.advance(java.time.Duration.ofMinutes(3));
 
-        create(agreed.sessionId(), "Asha V", "9123456789", true)
+        create(agreed.sessionId(), "Asha V", "+91 98765-43210", true)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(first.bookingId().toString()))
                 .andExpect(jsonPath("$.checkout.orderId").value(first.checkout().orderId()))
@@ -203,7 +205,9 @@ class BookingIT extends BookingItSupport {
 
     @Test
     void noRoomsLeftMeansNoBooking() throws Exception {
+        // The agreement's hold runs out after 10 minutes, and meanwhile the owner reports no rooms.
         TestBookings.Agreed agreed = fixtures.agreed(LAT, 1400, 700, 1);
+        clock.advance(java.time.Duration.ofMinutes(10));
         hotels.roomsFree(agreed.hotel(), TestBookings.NIGHT, 0);
         create(agreed.sessionId(), "Asha Verma", "9876543210", true)
                 .andExpect(status().isConflict())

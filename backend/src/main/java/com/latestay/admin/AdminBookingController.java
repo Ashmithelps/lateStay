@@ -27,6 +27,9 @@ class AdminBookingController {
     record CheckInBody(@NotBlank String code) {
     }
 
+    record SettleBody(@jakarta.validation.constraints.NotNull com.latestay.booking.DisputeOutcome outcome) {
+    }
+
     private final BookingService bookings;
     private final BookingRepository repository;
     private final AdminQueries queries;
@@ -67,6 +70,27 @@ class AdminBookingController {
     @PostMapping("/bookings/{id}/check-in")
     AdminBookingDetail checkIn(@PathVariable UUID id, @RequestBody @jakarta.validation.Valid CheckInBody body) {
         bookings.checkIn(id, body.code());
+        return detail(id);
+    }
+
+    /** Settle a dispute: the guest stayed (COMPLETED) or didn't arrive (NO_SHOW, final). */
+    @PostMapping("/bookings/{id}/settle")
+    AdminBookingDetail settle(@PathVariable UUID id, @RequestBody @jakarta.validation.Valid SettleBody body) {
+        bookings.settle(id, body.outcome());
+        return detail(id);
+    }
+
+    /** A "turned away" dispute keeps its hotel out of search until it is settled, not just DISPUTE_HIDE_HOURS. */
+    @PostMapping("/bookings/{id}/keep-hidden")
+    AdminBookingDetail keepHidden(@PathVariable UUID id) {
+        bookings.keepHidden(id);
+        return detail(id);
+    }
+
+    /** The hotel let the traveller down: HOTEL_FAILED, refund now, one failure on the hotel's record. */
+    @PostMapping("/bookings/{id}/rescue")
+    AdminBookingDetail rescue(@PathVariable UUID id) {
+        bookings.rescue(id);
         return detail(id);
     }
 

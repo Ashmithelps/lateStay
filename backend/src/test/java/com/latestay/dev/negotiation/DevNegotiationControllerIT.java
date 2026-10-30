@@ -94,6 +94,31 @@ class DevNegotiationControllerIT {
                 .andExpect(status().isBadRequest());
     }
 
+    /** The simulator agrees through the public chat API, which takes a room hold: the lodge always has rooms. */
+    @Test
+    void aSessionCanBeAgreedThroughTheChatApi() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(post("/api/negotiations/{id}/accept", createdId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("AGREED"));
+        }
+    }
+
+    @Test
+    void theSimulatorCanAskForOccupancyPricing() throws Exception {
+        mvc.perform(post("/api/dev/negotiations").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"listPrice": 1400, "floorPrice": 700, "slotType": "LATE_NIGHT", "arrival": "23:30",
+                         "pricingVersion": 2, "roomsFree": 1, "totalRooms": 10, "demandPercent": 100}
+                        """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currentOffer").value(1350)); // the last room: 95% of list
+        mvc.perform(post("/api/dev/negotiations").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"listPrice": 1400, "floorPrice": 700, "slotType": "LATE_NIGHT", "arrival": "23:30",
+                         "pricingVersion": 2, "roomsFree": 1, "totalRooms": 10, "demandPercent": 200}
+                        """))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void unknownSessionIsNotFound() throws Exception {
         turn("nope", """

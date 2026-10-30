@@ -1,5 +1,9 @@
 package com.latestay.whatsapp;
 
+import com.latestay.jobs.JobRuns;
+import com.latestay.jobs.SchedulerLockConfig;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import com.latestay.web.Pii;
@@ -22,9 +26,11 @@ public class WhatsAppSender {
     private final WhatsAppProperties properties;
     private final ObjectMapper json;
     private final Clock clock;
+    private final JobRuns jobRuns;
 
     public WhatsAppSender(WhatsAppMessageRepository messages, WhatsAppClient client, WhatsAppProperties properties,
-            ObjectMapper json, Clock clock) {
+            ObjectMapper json, Clock clock, JobRuns jobRuns) {
+        this.jobRuns = jobRuns;
         this.messages = messages;
         this.client = client;
         this.properties = properties;
@@ -56,7 +62,9 @@ public class WhatsAppSender {
 
     @Scheduled(fixedDelayString = "${latestay.whatsapp.send-interval:5s}",
             initialDelayString = "${latestay.whatsapp.send-interval:5s}")
-    void tick() {
+    @SchedulerLock(name = SchedulerLockConfig.WHATSAPP_SENDER, lockAtMostFor = "PT2M", lockAtLeastFor = "PT2S")
+    public void tick() {
+        jobRuns.ran(SchedulerLockConfig.WHATSAPP_SENDER);
         try {
             sendQueued();
         } catch (RuntimeException e) {

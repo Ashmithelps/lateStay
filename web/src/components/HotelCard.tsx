@@ -1,11 +1,12 @@
 "use client";
 
-import { Heart, Star } from "lucide-react";
+import { Heart } from "lucide-react";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import type { HotelResult } from "@/lib/api";
 import { formatDistance, formatPrice, roomsFreeLabel } from "@/lib/format";
 import { Photo } from "./Photo";
+import { RatingBadge } from "./RatingBadge";
 import { cx, focusRing } from "./ui";
 
 const SAVED_KEY = "latestay:saved";
@@ -54,6 +55,8 @@ export function HotelCard({ hotel, href, priority, eager, compact }: {
   compact?: boolean;
 }) {
   const [saved, toggleSaved] = useSaved(hotel.id);
+  // A group no single room fits gets two rooms here, priced together.
+  const groupRooms = hotel.roomTypes[0]?.rooms ?? 1;
   return (
     <article className={cx("relative", compact && "flex gap-3")}>
       <Link href={href} className={cx("block rounded-card", focusRing, compact && "w-28 shrink-0")} aria-label={hotel.name}>
@@ -89,20 +92,15 @@ export function HotelCard({ hotel, href, priority, eager, compact }: {
               {hotel.name}
             </Link>
           </h2>
-          {hotel.rating !== null && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-14 text-ink tabular-nums">
-              <Star size={14} strokeWidth={1.5} className="fill-ink" aria-hidden />
-              <span className="sr-only">Rated </span>
-              {hotel.rating.toFixed(1)}
-            </span>
-          )}
+          <RatingBadge rating={hotel.rating} count={hotel.reviewCount} />
         </div>
         <p className="text-14 text-ink-secondary">
           {hotel.town} · {formatDistance(hotel.distanceKm)}
         </p>
         <p className="text-14 font-medium text-pine">{roomsFreeLabel(hotel.roomsFree)}</p>
         <p className="mt-1 text-16 text-ink">
-          <span className="font-semibold tabular-nums">from {formatPrice(hotel.fromPrice)}</span> tonight
+          <span className="font-semibold tabular-nums">from {formatPrice(hotel.fromPrice)}</span>{" "}
+          {groupRooms > 1 ? `for ${groupRooms} rooms` : "tonight"}
         </p>
       </div>
     </article>

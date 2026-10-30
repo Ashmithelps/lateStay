@@ -1,5 +1,9 @@
 package com.latestay.whatsapp;
 
+import com.latestay.jobs.JobRuns;
+import com.latestay.jobs.SchedulerLockConfig;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+
 import com.latestay.hotel.Hotel;
 import com.latestay.hotel.HotelRepository;
 import com.latestay.hotel.NotFoundException;
@@ -28,9 +32,11 @@ public class AvailabilityPings {
     private final WhatsAppOutbox outbox;
     private final WhatsAppProperties properties;
     private final Clock clock;
+    private final JobRuns jobRuns;
 
     public AvailabilityPings(HotelRepository hotels, WhatsAppOutbox outbox, WhatsAppProperties properties,
-            Clock clock) {
+            Clock clock, JobRuns jobRuns) {
+        this.jobRuns = jobRuns;
         this.hotels = hotels;
         this.outbox = outbox;
         this.properties = properties;
@@ -38,7 +44,9 @@ public class AvailabilityPings {
     }
 
     @Scheduled(cron = "${latestay.whatsapp.ping-cron:0 0 21 * * *}", zone = "Asia/Kolkata")
-    void nightly() {
+    @SchedulerLock(name = SchedulerLockConfig.NIGHTLY_PING, lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
+    public void nightly() {
+        jobRuns.ran(SchedulerLockConfig.NIGHTLY_PING);
         try {
             log.info("Nightly availability ping queued for {} hotels", pingAll());
         } catch (RuntimeException e) {

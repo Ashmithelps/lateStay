@@ -28,10 +28,14 @@ class AdminQueries {
     static final int LIMIT = 200;
 
     private static final String BOOKING_SELECT = """
-            SELECT b.id, b.status, b.hotel_id, h.name AS hotel_name, r.name AS room_name, b.guest_name, b.phone,
+            SELECT b.id, b.status, b.hotel_id, h.name AS hotel_name,
+                   CASE WHEN b.rooms > 1 THEN b.rooms || ' rooms (' || (SELECT string_agg(rt.name, ' + '
+                        ORDER BY br.line_no) FROM booking_room br JOIN room_type rt ON rt.id = br.room_type_id
+                        WHERE br.booking_id = b.id) || ')' ELSE r.name END AS room_name, b.guest_name, b.phone,
                    b.guests, b.arrive_at, b.arrive_by, b.leave_at, b.agreed_price, b.deposit_amount, b.pay_at_desk,
                    b.commission_amount, b.code, b.pay_by, b.confirm_by, p.status AS payment_status,
-                   p.razorpay_payment_id, p.refund_id, b.created_at, b.updated_at, b.session_id
+                   p.razorpay_payment_id, p.refund_id, b.created_at, b.updated_at, b.session_id, b.dispute_reason,
+                   b.disputed_at, b.arrival_check_sent_at, h.reliability_failures, b.hide_until, b.keep_hidden_at
             FROM booking b
             JOIN hotel h ON h.id = b.hotel_id
             JOIN room_type r ON r.id = b.room_type_id
@@ -62,7 +66,8 @@ class AdminQueries {
     List<AdminBooking> recentBookings() {
         return jdbc.sql(BOOKING_SELECT + """
 
-                        WHERE b.status IN ('PENDING_PAYMENT', 'DEPOSIT_PAID', 'HOTEL_CONFIRMED', 'CHECKED_IN')
+                        WHERE b.status IN ('PENDING_PAYMENT', 'DEPOSIT_PAID', 'HOTEL_CONFIRMED', 'CHECKED_IN',
+                                           'DISPUTED')
                            OR b.updated_at > :since
                         ORDER BY b.created_at DESC LIMIT :limit""")
                 .param("since", at(clock.instant().minus(Duration.ofDays(3)))).param("limit", LIMIT)
@@ -103,14 +108,16 @@ class AdminQueries {
 
     List<AvailabilityRow> availability(LocalDate nightOf) {
         return jdbc.sql("""
-                        SELECT h.id, h.name, h.town, h.active, a.rooms_free, a.reported_at, a.source
+                        SELECT h.id, h.name, h.town, h.active, a.rooms_free, a.reported_at, a.source,
+                               rooms_available(h.id, :night, :now) AS available, h.reliability_failures
                         FROM hotel h
                         LEFT JOIN nightly_availability a ON a.hotel_id = h.id AND a.night_of = :night
                         ORDER BY h.active DESC, h.town, h.name""")
-                .param("night", nightOf)
+                .param("night", nightOf).param("now", at(clock.instant()))
                 .query((rs, n) -> new AvailabilityRow(rs.getObject("id", UUID.class), rs.getString("name"),
                         rs.getString("town"), rs.getBoolean("active"), (Integer) rs.getObject("rooms_free"),
-                        instant(rs, "reported_at"), rs.getString("source")))
+                        instant(rs, "reported_at"), rs.getString("source"), rs.getInt("available"),
+                        rs.getInt("reliability_failures")))
                 .list();
     }
 
@@ -122,7 +129,9 @@ class AdminQueries {
                 rs.getLong("deposit_amount"), rs.getLong("pay_at_desk"), rs.getLong("commission_amount"),
                 rs.getString("code"), instant(rs, "pay_by"), instant(rs, "confirm_by"),
                 rs.getString("payment_status"), rs.getString("razorpay_payment_id"), rs.getString("refund_id"),
-                instant(rs, "created_at"), instant(rs, "updated_at"), rs.getObject("session_id", UUID.class));
+                instant(rs, "created_at"), instant(rs, "updated_at"), rs.getObject("session_id", UUID.class),
+                rs.getString("dispute_reason"), instant(rs, "disputed_at"), instant(rs, "arrival_check_sent_at"),
+                rs.getInt("reliability_failures"), instant(rs, "hide_until"), instant(rs, "keep_hidden_at"));
     }
 
     private static AdminNegotiation negotiation(ResultSet rs, int n) throws SQLException {

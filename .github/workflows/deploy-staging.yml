@@ -1,0 +1,51 @@
+name: Deploy staging
+
+# Every push to main, once CI has passed on that commit: backend, imaging and web to staging.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to staging
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    environment:
+      name: staging
+      url: https://staging.latestay.in
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Backend (latestay-api-staging)
+        working-directory: backend
+        run: flyctl deploy --config fly.staging.toml --remote-only
+      - name: Imaging (latestay-imaging-staging)
+        working-directory: imaging
+        run: flyctl deploy --config fly.staging.toml --remote-only
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Web (Vercel project latestay-staging)
+        working-directory: web
+        run: |
+          npx --yes vercel@64.0.2 pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@64.0.2 build --prod --token="$VERCEL_TOKEN"
+          npx --yes vercel@64.0.2 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - name: Health check
+        run: curl --fail --retry 10 --retry-delay 6 --retry-all-errors -s https://api-staging.latestay.in/api/health

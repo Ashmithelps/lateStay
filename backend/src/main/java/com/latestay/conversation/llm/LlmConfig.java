@@ -16,9 +16,18 @@ public class LlmConfig {
     private static final Logger log = LoggerFactory.getLogger(LlmConfig.class);
 
     @Bean
-    LlmClient llmClient(LlmProperties properties, RestClient.Builder builder) {
+    LlmClient llmClient(LlmProperties properties, RestClient.Builder builder,
+            org.springframework.jdbc.core.simple.JdbcClient jdbc, java.time.Clock clock) {
         LlmClient client = create(properties, builder);
         log.info("LLM client: {}", client.getClass().getSimpleName());
+        if (!(client instanceof NoLlmClient) && properties.priceInputPerMtokUsd().signum() == 0) {
+            log.warn("LLM_PRICE_INPUT_PER_MTOK_USD / LLM_PRICE_OUTPUT_PER_MTOK_USD are not set: LLM cost isn't recorded");
+        }
+        if (properties.monthlyBudgetUsd().signum() > 0) {
+            log.info("LLM monthly budget: ${}", properties.monthlyBudgetUsd());
+            return new BudgetedLlmClient(client, properties.monthlyBudgetUsd(),
+                    () -> LlmSpend.monthToDateMicroUsd(jdbc, clock), clock);
+        }
         return client;
     }
 

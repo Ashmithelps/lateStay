@@ -4,6 +4,8 @@ import com.latestay.conversation.ConversationRepository.NewTurn;
 import com.latestay.conversation.ConversationService;
 import com.latestay.conversation.ConversationService.OpeningReply;
 import com.latestay.conversation.UnknownConversationException;
+import com.latestay.hotel.AvailabilityRepository;
+import com.latestay.hotel.AvailabilitySource;
 import com.latestay.hotel.Hotel;
 import com.latestay.hotel.HotelPolicies;
 import com.latestay.hotel.HotelRepository;
@@ -44,11 +46,15 @@ class DevNegotiationService {
     private final JdbcConversationRepository sessions;
     private final ConversationService conversations;
     private final NegotiationEngine engine;
+    private final AvailabilityRepository availability;
     private final Clock clock;
+
+    static final int SIMULATOR_ROOMS = 1_000_000;
 
     DevNegotiationService(HotelRepository hotels, RoomTypeRepository roomTypes, StayRequestRepository stayRequests,
             JdbcConversationRepository sessions, ConversationService conversations, NegotiationEngine engine,
-            Clock clock) {
+            AvailabilityRepository availability, Clock clock) {
+        this.availability = availability;
         this.hotels = hotels;
         this.roomTypes = roomTypes;
         this.stayRequests = stayRequests;
@@ -67,12 +73,14 @@ class DevNegotiationService {
         LocalDate arrivalDate = arrival.isBefore(LocalTime.of(6, 0)) ? today.plusDays(1) : today;
         StayWindow window = StayWindow.of(arrivalDate.atTime(arrival), arrivalDate.atTime(arrival).plusHours(1));
         StayRequest request = stayRequests.insert(lodge.lat(), lodge.lng(), window, 1, List.of());
+        // Agreeing takes a room hold, so the (inactive, never searched) lodge always has rooms for the night.
+        availability.upsert(lodge.id(), window.nightOf(), SIMULATOR_ROOMS, AvailabilitySource.ADMIN);
 
         NegotiationSession session = engine.open(policy, arrival);
         OpeningReply opening = conversations.openingReply(session,
                 new com.latestay.conversation.HotelFacts(lodge.name(), List.of("Room heater"), List.of()));
         sessions.create(session, request.id(), room.id(), NewTurn.bot(opening.text(),
-                session.history().getFirst().decision(), opening.validatorResult(), opening.latencyMs()));
+                session.history().getFirst().decision(), opening.validatorResult(), opening.latencyMs(), opening.spend()));
         return session;
     }
 
@@ -88,7 +96,7 @@ class DevNegotiationService {
         return hotels.findBySlug(SIM_SLUG).orElseGet(() -> {
             Hotel lodge = hotels.insert(new Hotel(null, "Simulator Lodge", SIM_SLUG, "Manali", "Not a real hotel",
                     32.2432, 77.1892, "+910000000000", List.of("heater"),
-                    new HotelPolicies(false, false, null), BigDecimal.ZERO, false, List.of()));
+                    new HotelPolicies(false, false, null), 10, false, List.of()));
             roomTypes.insert(lodge.id(), "Simulator room", 1, 10);
             return lodge;
         });

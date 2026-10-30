@@ -100,11 +100,80 @@ class NegotiationPropertiesTest {
         Arbitrary<Integer> maxRounds = Arbitraries.integers().between(1, 8);
         Arbitrary<SlotType> slot = Arbitraries.of(SlotType.class);
 
-        Arbitrary<PricingPolicy> policies = Combinators.combine(floor, markupPercent, slot, maxRounds, roundTo)
-                .as((f, markup, s, rounds, step) -> new PricingPolicy(f + f * markup / 100, f, s, rounds, step));
+        Arbitrary<PricingPolicy> policies = Combinators.combine(floor, markupPercent, slot, maxRounds, roundTo,
+                        contexts())
+                .as((f, markup, s, rounds, step, context) ->
+                        new PricingPolicy(f + f * markup / 100, f, s, rounds, step, context));
 
         return policies.flatMap(policy -> arrivals(policy.slotType())
                 .map(arrival -> new Setup(policy, arrival, List.of())));
+    }
+
+    /** The rules before occupancy pricing, and random nights under it (rooms free can exceed the total). */
+    private Arbitrary<PricingContext> contexts() {
+        Arbitrary<PricingContext> occupancy = Combinators.combine(
+                        Arbitraries.integers().between(0, 60), Arbitraries.integers().between(1, 50),
+                        Arbitraries.integers().between(PricingContext.MIN_DEMAND_PERCENT,
+                                PricingContext.MAX_DEMAND_PERCENT))
+                .as(PricingContext::of);
+        return Arbitraries.frequencyOf(net.jqwik.api.Tuple.of(1, Arbitraries.just(PricingContext.LEGACY)),
+                net.jqwik.api.Tuple.of(4, occupancy));
+    }
+
+    @Property(tries = 2000)
+    void openingIsNeverAboveListOrBelowFloor(@ForAll("setupsWithOther") Setup setup) {
+        PricingPolicy policy = setup.policy();
+        long opening = engine.openingOffer(policy, setup.arrival());
+        assertThat(opening).isGreaterThanOrEqualTo(policy.floorPrice());
+        assertThat(opening % policy.roundTo()).isZero();
+        if (policy.context().version() == 2) {
+            long cap = policy.listPrice() / policy.roundTo() * policy.roundTo();
+            assertThat(opening).isLessThanOrEqualTo(Math.max(cap, Prices.roundUp(policy.floorPrice(), policy.roundTo())));
+        }
+    }
+
+    /** Fewer rooms free never opens lower, all else equal; the last room opens at least as high as anything. */
+    @Property(tries = 2000)
+    void scarcerRoomsNeverOpenLower(@ForAll("setupsWithOther") Setup setup,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 50) int total,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 1, max = 50) int fewer,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 0, max = 50) int extra,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 70, max = 150) int demand) {
+        PricingPolicy p = setup.policy();
+        int scarce = Math.min(fewer, total);
+        int roomier = Math.min(scarce + extra, total);
+        long scarceOpening = engine.openingOffer(withContext(p, PricingContext.of(scarce, total, demand)), setup.arrival());
+        long roomierOpening = engine.openingOffer(withContext(p, PricingContext.of(roomier, total, demand)), setup.arrival());
+        long lastRoom = engine.openingOffer(withContext(p, PricingContext.of(1, total, demand)), setup.arrival());
+        assertThat(scarceOpening).isGreaterThanOrEqualTo(roomierOpening);
+        assertThat(lastRoom).isGreaterThanOrEqualTo(scarceOpening);
+    }
+
+    /** A busier night (higher demand) never opens lower, all else equal. */
+    @Property(tries = 1000)
+    void busierNightsNeverOpenLower(@ForAll("setupsWithOther") Setup setup,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 70, max = 150) int a,
+            @ForAll @net.jqwik.api.constraints.IntRange(min = 70, max = 150) int b) {
+        PricingPolicy p = setup.policy();
+        PricingContext c = p.context().version() == 2 ? p.context() : PricingContext.of(3, 10, 100);
+        long low = engine.openingOffer(withContext(p, PricingContext.of(c.roomsFree(), c.totalRooms(), Math.min(a, b))),
+                setup.arrival());
+        long high = engine.openingOffer(withContext(p, PricingContext.of(c.roomsFree(), c.totalRooms(), Math.max(a, b))),
+                setup.arrival());
+        assertThat(high).isGreaterThanOrEqualTo(low);
+    }
+
+    /** Version 1 is exactly the engine before occupancy pricing. */
+    @Property(tries = 1000)
+    void legacyOpeningIsUnchanged(@ForAll("setupsWithOther") Setup setup) {
+        PricingPolicy p = withContext(setup.policy(), PricingContext.LEGACY);
+        long expected = Math.max(Prices.percentRoundedUp(p.listPrice(), OpeningPrice.percentOfList(setup.arrival()),
+                p.roundTo()), Prices.roundUp(p.floorPrice(), p.roundTo()));
+        assertThat(engine.openingOffer(p, setup.arrival())).isEqualTo(expected);
+    }
+
+    private static PricingPolicy withContext(PricingPolicy p, PricingContext context) {
+        return new PricingPolicy(p.listPrice(), p.floorPrice(), p.slotType(), p.maxRounds(), p.roundTo(), context);
     }
 
     private Arbitrary<LocalTime> arrivals(SlotType slot) {
