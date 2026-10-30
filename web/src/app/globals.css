@@ -145,3 +145,37 @@ body {
 .leaflet-container {
   font-family: var(--font-sans);
 }
+
+/*
+ * The iOS and Android apps only (html.native, set by NATIVE_BOOT_SCRIPT before first paint; never on the website).
+ * The page uses the whole screen there (viewport-fit=cover), so it pads for the notch and home indicator itself:
+ * a canvas strip behind the status bar, sticky headers below it, and room for the tab bar (html.with-tabs) at the
+ * bottom. The tab bar hides while the keyboard is open, so the chat composer and Accept sit right above it.
+ */
+@custom-variant native (&:where(.native, .native *));
+
+.native {
+  --tabbar: 0px;
+}
+.native.with-tabs:not(.keyboard-open) {
+  --tabbar: calc(56px + env(safe-area-inset-bottom));
+}
+.native body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: var(--tabbar);
+  -webkit-tap-highlight-color: transparent;
+}
+.native body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: var(--color-canvas);
+  z-index: 1200;
+}
+.native .sticky.top-0 {
+  top: env(safe-area-inset-top);
+}
+.native.keyboard-open .native-tabbar {
+  display: none;
+}

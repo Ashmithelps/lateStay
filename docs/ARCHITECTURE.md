@@ -5,6 +5,7 @@ LateStay matches travellers who reach Indian hill stations late at night with ho
 ## Components
 
 - **Traveller PWA (`web/`).** Next.js App Router, mobile-first. Search, hotel pages, the haggle chat and the booking pass. Talks only to the backend's `/api/**`.
+- **iOS and Android apps (`mobile/`).** Capacitor shells that load the same web app and add native features around it ([Mobile apps](#mobile-apps), [MOBILE.md](MOBILE.md)).
 - **Backend (`backend/`).** Spring Boot 3, Java 21. Modules:
   - **Matching:** finds hotels near the traveller with rooms free tonight (PostGIS distance queries).
   - **Negotiation engine:** deterministic pricing rules per hotel (floor, opening price, concession steps, time-of-night, and the night's occupancy, weekend and season: [Pricing](#pricing)). The LLM only phrases messages and interprets traveller intent; it never decides a price. Every number it says comes from the engine.
@@ -84,11 +85,12 @@ database to prove it, and another fails if a new job has no lock. Each run that 
 | --- | --- |
 | Booking jobs (expiry, timeouts, arrival checks, completion, holds, refunds) | every 15 s |
 | WhatsApp sender | every 5 s |
+| Push sender (app notifications) | every 5 s |
 | Analytics forwarder (to PostHog) | every 30 s |
 | Availability ping | 21:00 |
 | Morning digest | 09:00 |
 | Review invites | 11:00 |
-| Phone retention, owner-link cleanup | 03:30, 03:45 |
+| Phone retention, owner-link cleanup, device-token cleanup | 03:30, 03:45, 03:50 |
 | Weekly settlement | Monday 10:00 |
 
 ## Launch tracking
@@ -174,3 +176,29 @@ late-night price (25th–75th percentile of one-room late-night agreed prices pa
 ₹50, only with 3 or more; never floors or live offers) and an FAQ worded from /refund-policy. Titles, descriptions,
 an Open Graph image per town (`opengraph-image.tsx`, Plus Jakarta Sans from `src/assets/fonts`), `sitemap.xml` and
 `robots.txt`; only `NEXT_PUBLIC_APP_ENV=production` is indexable.
+
+## Mobile apps
+
+- **Loading.** `mobile/` is a Capacitor 8 project. The apps load the live web app (`server.url`: production, or
+  staging for staging builds; `allowNavigation` only our hosts and Razorpay's checkout), with `LateStayApp/<version>`
+  added to the user agent. A web deploy updates the apps at once; only native changes need a store release. When the
+  server can't be reached: on iOS the bundled `mobile/www/offline.html` shows "No connection", the saved passes and
+  Retry; Android gives that page no Capacitor bridge, so the web app's service worker serves its own offline screen
+  (`/~offline`, which in the app lists the saved passes) and the bundled page is the last resort (Retry only).
+- **App-only code** lives in `web/src/lib/native` and `web/src/components/native`: detected with Capacitor's
+  `isNativePlatform()` (and `html.native`, set before first paint by `NATIVE_BOOT_SCRIPT`), plugins imported lazily, so
+  the website downloads none of it and looks exactly as before (`e2e/unchanged.spec.ts` compares pixels). CSS for the
+  app only uses the `native:` variant. `/app/bookings` and `/app/help` 404 on the website (user agent check).
+- **Shell:** bottom tabs (Tonight, Bookings, Help), safe areas, dark status bar text, Android back button (exits only
+  from Tonight), haptics (Accept; hotel confirmed), links (maps, dialler, WhatsApp outside; policy pages in the in-app
+  browser), native share sheet, location for "I need a room now", Razorpay's native SDK (`capacitor-razorpay`) for
+  payments (UPI apps and the return to the app), saved passes in Preferences (`latestay.passes`).
+- **Push** (`com.latestay.push`): after the deposit is paid the pass offers notifications (our card, then the
+  system prompt; once per install). The app registers its FCM token with `POST /api/devices` for that booking (and the
+  verified number's hash, so later bookings reach it). `PushNotifications` queues one `push_message` per booking and
+  status (dedupe key) when a device is registered: confirmed, declined, timed out, cancelled after payment, rescued,
+  refunded, and the 11:00 review request; `PushSender` sends through the Firebase Admin SDK
+  (`FIREBASE_SERVICE_ACCOUNT_JSON`), deleting tokens FCM reports gone; tokens unseen for 90 days are deleted. Payloads
+  carry the text and `bookingId` / `path` only: never a code, phone number or name. Tapping one opens the pass.
+- **Deep links:** `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` (web route handlers,
+  from `APPLE_TEAM_ID`, `ANDROID_CERT_SHA256`, `MOBILE_APP_ID`) make /pass/* and /stay/* open in the app.

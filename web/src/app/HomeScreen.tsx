@@ -25,6 +25,7 @@ import { useSearchResults, type InitialSearch } from "@/lib/queries";
 import { analyticsId, firstTouch } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { nearFirst, NEAR_KM, roomNow } from "@/lib/room-now";
+import { currentPosition } from "@/lib/native/plugins";
 import { placeTag, track } from "@/lib/track";
 import { readSearch, rememberSearch, writeSearch, type SearchState } from "@/lib/search-state";
 import { stayDates } from "@/lib/stay";
@@ -122,24 +123,19 @@ export function HomeScreen({ initial }: { initial?: InitialSearch }) {
         // Non-breaking space: "5:15 am" stays on one line.
         notice: `We couldn't get your location. Pick a town: arriving ${formatTime(times.arrive).replace(" ", "\u00a0")}, ${times.guests} guests.`,
       });
-    if (!("geolocation" in navigator)) {
-      track("room_now_tapped", { located: false });
-      pickTown();
-      return;
-    }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    // The app asks with its own permission text; the website uses the browser's.
+    currentPosition().then(
       (pos) => {
         setLocating(false);
         track("room_now_tapped", { located: true });
-        go({ ...base, place: "here", placeLabel: "Your location", lat: pos.coords.latitude, lng: pos.coords.longitude }, "list");
+        go({ ...base, place: "here", placeLabel: "Your location", lat: pos.lat, lng: pos.lng }, "list");
       },
       () => {
         setLocating(false);
         track("room_now_tapped", { located: false });
         pickTown();
       },
-      { timeout: 8000, maximumAge: 60_000 },
     );
   }
 

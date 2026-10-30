@@ -1,0 +1,83 @@
+name: Mobile builds
+
+# Builds the iOS and Android apps on every push, so a broken native build is caught straight away. No signing here:
+# release builds are signed and uploaded by hand (docs/MOBILE.md).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+      # Version and app ID from mobile/package.json and env, then Capacitor's generated files.
+      - name: Configure and sync
+        run: node scripts/configure.mjs && npx cap sync android
+      - name: Build debug APK and unsigned release bundle
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-builds
+          path: |
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
+  ios:
+    name: iOS build (simulator, unsigned)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: xcodebuild -version && pod --version
+      # cap sync runs pod install (Capacitor's plugins, Razorpay's SDK, FirebaseMessaging).
+      - name: Configure and sync
+        run: node scripts/configure.mjs && npx cap sync ios
+      - name: Build for the simulator
+        working-directory: mobile/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -40
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: mobile/ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+          retention-days: 7

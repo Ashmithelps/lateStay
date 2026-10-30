@@ -37,9 +37,11 @@ public class ReviewInvites {
     private final JobRuns jobRuns;
     private final Clock clock;
     private final String webUrl;
+    private final com.latestay.push.PushOutbox push;
 
     ReviewInvites(JdbcClient jdbc, WhatsAppOutbox outbox, WhatsAppProperties properties, JobRuns jobRuns, Clock clock,
-            @Value("${latestay.public-web-url}") String webUrl) {
+            @Value("${latestay.public-web-url}") String webUrl, com.latestay.push.PushOutbox push) {
+        this.push = push;
         this.jdbc = jdbc;
         this.outbox = outbox;
         this.properties = properties;
@@ -62,10 +64,11 @@ public class ReviewInvites {
     record Due(UUID bookingId, String phone, String hotelName) {
     }
 
-    /** @return how many invites were queued (each booking at most once) */
+    /** @return how many WhatsApp invites were queued (each booking at most once); app notifications go too */
     @Transactional
     public int send() {
         Instant now = clock.instant();
+        sendPush(now);
         var due = jdbc.sql("""
                         SELECT b.id, b.phone, h.name FROM booking b JOIN hotel h ON h.id = b.hotel_id
                         WHERE b.status IN ('CHECKED_IN', 'COMPLETED') AND b.whatsapp_updates_at IS NOT NULL
@@ -82,6 +85,19 @@ public class ReviewInvites {
             queued += added ? 1 : 0;
         }
         return queued;
+    }
+
+    /** The same invite as an app notification, for stays whose traveller registered a device (no WhatsApp opt-in needed). */
+    private void sendPush(Instant now) {
+        jdbc.sql("""
+                        SELECT b.id, h.name FROM booking b JOIN hotel h ON h.id = b.hotel_id
+                        WHERE b.status IN ('CHECKED_IN', 'COMPLETED') AND b.leave_at <= :now AND b.leave_at > :since
+                          AND NOT EXISTS (SELECT 1 FROM review r WHERE r.booking_id = b.id)""")
+                .param("now", now.atOffset(ZoneOffset.UTC)).param("since", now.minus(LOOKBACK).atOffset(ZoneOffset.UTC))
+                .query((rs, n) -> new String[] {rs.getString("id"), rs.getString("name")})
+                .list()
+                .forEach(row -> push.queue(UUID.fromString(row[0]), "REVIEW",
+                        com.latestay.push.PushTexts.review(row[1]), "/pass/" + row[0] + "/review"));
     }
 
     /** The booking_update line ({{1}}: no full stop). */

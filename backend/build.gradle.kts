@@ -34,6 +34,7 @@ dependencies {
     // One run per scheduled job across instances (deploy overlap, future scaling).
     implementation("net.javacrumbs.shedlock:shedlock-spring:6.9.2")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.9.2")
+    implementation("com.google.firebase:firebase-admin:9.11.0")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")

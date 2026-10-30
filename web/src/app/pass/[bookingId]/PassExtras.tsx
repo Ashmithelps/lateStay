@@ -8,6 +8,7 @@ import { Button } from "@/components/Button";
 import { cx, focusRing } from "@/components/ui";
 import { api, type BookingView, type ShareLink } from "@/lib/api";
 import { formatDay, formatInstantTime } from "@/lib/format";
+import { nativeShare } from "@/lib/native/plugins";
 
 const STAYED = new Set(["CHECKED_IN", "COMPLETED"]);
 const SHAREABLE = new Set(["DEPOSIT_PAID", "HOTEL_CONFIRMED", "CHECKED_IN"]);
@@ -71,6 +72,8 @@ export function ShareStay({ b }: { b: BookingView }) {
 
   async function send(share: ShareLink) {
     const text = `I'm staying at ${b.hotel.name} tonight. Here's where, and when I'll get there:`;
+    // The app's native share sheet; the website carries on below.
+    if (await nativeShare(`${b.hotel.name} · LateStay`, text, share.url)) return;
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title: `${b.hotel.name} · LateStay`, text, url: share.url });

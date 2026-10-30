@@ -61,7 +61,7 @@ public class RateLimiter implements HandlerInterceptor {
         } else if (path.equals("/api/phone-verifications")) {
             checks = List.of(new Limit("code-ip:" + ip, limits.codesPerIpPerHour(), Duration.ofHours(1)));
         } else if (path.equals("/api/events") || path.endsWith("/attribution") || path.endsWith("/review")
-                || path.endsWith("/share")) {
+                || path.endsWith("/share") || path.equals("/api/devices")) {
             checks = List.of(new Limit("events-ip:" + ip, limits.eventsPerIp()));
         } else if (path.equals("/api/owner/session")) {
             checks = List.of(new Limit("owner-ip:" + ip, limits.ownerSignInsPerIpPerHour(), Duration.ofHours(1)));

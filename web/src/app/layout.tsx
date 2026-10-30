@@ -3,9 +3,11 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { preconnect } from "react-dom";
 import { AttributionCapture } from "@/components/AttributionCapture";
+import { NativeShell } from "@/components/native/NativeShell";
 import { Providers } from "@/components/Providers";
 import { StagingBar } from "@/components/StagingBar";
 import { API_URL } from "@/lib/api";
+import { NATIVE_BOOT_SCRIPT } from "@/lib/native/platform";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable} h-full antialiased`}>
       <body className="min-h-full bg-canvas font-sans text-16 text-ink">
+        {/* The iOS/Android app only: marks <html> before first paint. Does nothing on the website. */}
+        <script dangerouslySetInnerHTML={{ __html: NATIVE_BOOT_SCRIPT }} />
         {/* Off in development so stale caches never get in the way while editing. No reload when the connection
             comes back: it would wipe a half-filled booking form (the offline notes update on their own). */}
         <SerwistProvider
@@ -48,7 +52,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           <StagingBar />
           <AttributionCapture />
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <NativeShell />
+          </Providers>
         </SerwistProvider>
       </body>
     </html>

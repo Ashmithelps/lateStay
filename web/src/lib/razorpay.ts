@@ -1,4 +1,5 @@
 import { api, type Checkout, type VerifyPaymentRequest } from "./api";
+import { isNative } from "./native/platform";
 
 const CHECKOUT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -39,6 +40,7 @@ function loadCheckout(): Promise<RazorpayConstructor> {
  */
 export async function pay(checkout: Checkout, description: string): Promise<VerifyPaymentRequest> {
   if (checkout.mode === "FAKE") return api.devPay(checkout.orderId);
+  if (isNative()) return payInApp(checkout, description);
 
   const Razorpay = await loadCheckout();
   return new Promise((resolve, reject) => {
@@ -61,4 +63,40 @@ export async function pay(checkout: Checkout, description: string): Promise<Veri
     });
     instance.open();
   });
+}
+
+/**
+ * In the iOS/Android app: Razorpay's native SDK (capacitor-razorpay), which opens UPI apps itself and comes back
+ * to the app with the result. Same order and signature check as the website; the deposit is for a real-world stay,
+ * so it never goes through Apple's or Google's in-app purchase.
+ */
+async function payInApp(checkout: Checkout, description: string): Promise<VerifyPaymentRequest> {
+  const { Checkout: NativeCheckout } = await import("capacitor-razorpay");
+  let result: { response: unknown };
+  try {
+    result = await NativeCheckout.open({
+      key: checkout.keyId,
+      amount: String(checkout.amountPaise),
+      order_id: checkout.orderId,
+      currency: checkout.currency,
+      name: "LateStay",
+      description,
+      prefill: { name: checkout.name, contact: checkout.phone },
+      timeout: checkout.timeoutSeconds,
+      theme: { color: "#222222" },
+    } as { key: string; amount: string });
+  } catch {
+    // Cancelled, failed or another wallet chosen: Razorpay showed its own message; the room stays held.
+    throw new PaymentDismissed("Payment wasn't completed.");
+  }
+  return nativeResult(result.response);
+}
+
+/** The SDK's success data, as an object (iOS) or JSON text (some Android versions). */
+export function nativeResult(response: unknown): VerifyPaymentRequest {
+  const data = (typeof response === "string" ? JSON.parse(response) : response) as Partial<RazorpayResponse> | null;
+  if (!data?.razorpay_payment_id || !data.razorpay_order_id || !data.razorpay_signature) {
+    throw new Error("The payment app didn't return a complete result. If money left your account, contact support.");
+  }
+  return { orderId: data.razorpay_order_id, paymentId: data.razorpay_payment_id, signature: data.razorpay_signature };
 }

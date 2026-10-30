@@ -132,6 +132,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events": {
         parameters: {
             query?: never;
@@ -536,6 +552,13 @@ export interface components {
             roomTypeIds: (string | null)[] | null;
             /** Format: uuid */
             stayRequestId: string;
+        };
+        DeviceBody: {
+            /** Format: uuid */
+            bookingId: string | null;
+            /** @enum {string} */
+            platform: "IOS" | "ANDROID";
+            token: string;
         };
         DeviceStatus: {
             verified: boolean;
@@ -1140,6 +1163,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["BookingView"];
                 };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

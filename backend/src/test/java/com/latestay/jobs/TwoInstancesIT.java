@@ -76,6 +76,8 @@ class TwoInstancesIT {
         jobs.put(SchedulerLockConfig.OWNER_LINK_CLEANUP, c -> c.getBean(OwnerJobs.class).deleteOldLinks());
         jobs.put(SchedulerLockConfig.MORNING_DIGEST, c -> c.getBean(MorningDigest.class).morning());
         jobs.put(SchedulerLockConfig.REVIEW_INVITES, c -> c.getBean(com.latestay.review.ReviewInvites.class).morning());
+        jobs.put(SchedulerLockConfig.PUSH_SENDER, c -> c.getBean(com.latestay.push.PushSender.class).tick());
+        jobs.put(SchedulerLockConfig.DEVICE_CLEANUP, c -> c.getBean(com.latestay.push.PushSender.class).cleanup());
         jobs.put(SchedulerLockConfig.ANALYTICS_FORWARDER, c -> c.getBean(PostHogForwarder.class).tick());
         return jobs;
     }

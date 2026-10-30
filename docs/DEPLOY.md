@@ -164,6 +164,7 @@ Production has no hotels until you add them: use the admin panel (`https://lates
 | `RELIABILITY_MIN_DECISIONS` | no | `3` | A hotel's confirm rate counts towards pausing once it has answered (or missed) this many bookings in 30 days |
 | `RELIABILITY_MIN_CONFIRM_RATE` | no | `70` | Pause a hotel from search below this confirm rate (%), until an admin reviews it |
 | `RELIABILITY_MAX_STRIKES` | no | `2` | Pause at this many rescues plus upheld disputes in 30 days |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | for app notifications | `{"type":"service_account",…}` | Firebase console > Project settings > Service accounts > Generate new private key, pasted as one line. A separate Firebase project per environment. Empty: app notifications are queued and marked NOT_SENT ([MOBILE.md](MOBILE.md)) |
 | `WA_ROOMS_TEMPLATE` | no | `false` | `true` once `booking_request_rooms` is approved: two-room bookings use it. Until then they go out as `booking_request`, which gives only the number of guests |
 
 ## 2b. Imaging (Fly.io, private)
@@ -208,6 +209,10 @@ Locally, `docker compose up imaging photos` runs the imaging service on 8081 and
 | `SUPPORT_WHATSAPP_NUMBER` | yes | `+91 98765 43210` | LateStay support on WhatsApp: the pass's "Problem at the hotel?" link and /contact. Server-side only |
 | `NEXT_PUBLIC_BUSINESS_ADDRESS` | for Razorpay live | `LateStay, 12 Mall Road,\nManali 175131, Himachal Pradesh` | Registered address on /contact (Razorpay checks it during live activation) |
 | `NEXT_PUBLIC_APP_ENV` | yes | `production` / `staging` | `staging` shows the "Staging · test payments" bar on every page. Only `production` lets search engines in: anything else (including empty) serves a robots.txt that disallows everything and an empty sitemap |
+| `APPLE_TEAM_ID` | for the iOS app | `ABCDE12345` | Apple Developer > Membership. Serves `/.well-known/apple-app-site-association` (Universal Links for /pass/* and /stay/*); 404 while empty |
+| `ANDROID_CERT_SHA256` | for the Android app | `AA:BB:…, CC:DD:…` | SHA-256 fingerprints of the upload key and of Google Play's app-signing key (Play Console > Setup > App signing), comma-separated. Serves `/.well-known/assetlinks.json`; 404 while empty |
+| `MOBILE_APP_ID` | no | `app.latestay` | The apps' bundle / application ID, as built ([MOBILE.md](MOBILE.md)) |
+| `NEXT_PUBLIC_APP_HOSTS` | no | `latestay.in,www.latestay.in,staging.latestay.in` | Hosts whose /pass and /stay links the app opens itself (deep links) |
 | `NEXT_PUBLIC_SITE_URL` | yes | `https://latestay.in` | The site's own address: canonical URLs, sitemap.xml, robots.txt and the town pages' Open Graph images |
 | `NEXT_PUBLIC_PHOTO_BASE_URL` | for uploaded photos | `https://photos.latestay.in` | Same as the backend's `R2_PUBLIC_BASE_URL`; allowed in next/image's remote patterns |
 | `NEXT_PUBLIC_SENTRY_DSN` | no | | Sentry > Project (Next.js) > Client Keys. Browser errors; empty = off |

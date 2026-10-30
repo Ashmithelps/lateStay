@@ -27,6 +27,8 @@ public class SchedulerLockConfig {
     public static final String MORNING_DIGEST = "morning-digest";
     public static final String ANALYTICS_FORWARDER = "analytics-forwarder";
     public static final String REVIEW_INVITES = "review-invites";
+    public static final String PUSH_SENDER = "push-sender";
+    public static final String DEVICE_CLEANUP = "device-cleanup";
 
     @Bean
     LockProvider lockProvider(DataSource dataSource) {

@@ -3,10 +3,14 @@
 import { WifiOff } from "lucide-react";
 import { Button, ButtonLink } from "@/components/Button";
 import { Wordmark } from "@/components/Wordmark";
+import { NativeOffline } from "@/components/native/NativeOffline";
+import { useNative } from "@/components/native/useNative";
 import { useLatestBooking } from "@/lib/bookings-store";
 
 export function OfflineScreen() {
   const booking = useLatestBooking();
+  // The iOS/Android app shows its own "No connection" screen with every saved pass.
+  if (useNative()) return <NativeOffline />;
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-4 py-6">
       <Wordmark />

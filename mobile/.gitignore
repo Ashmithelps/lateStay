@@ -1,0 +1,14 @@
+node_modules/
+
+# Per-environment Firebase config and signing material: never in git (docs/MOBILE.md says where they live).
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+android/keystore.properties
+
+# Written by scripts/configure.mjs on every build
+www/app-config.js

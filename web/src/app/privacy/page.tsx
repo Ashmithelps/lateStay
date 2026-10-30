@@ -56,6 +56,16 @@ export default function PrivacyPage() {
             until you turn it off.
           </li>
           <li>
+            <strong>App notifications, if you allow them:</strong> in the LateStay app for iPhone or Android, after you
+            pay we offer to notify you when the hotel confirms. If you allow it, we keep your phone&apos;s notification
+            token (a random identifier for the app on your phone), which bookings it should hear about and, if you
+            checked your number on that phone, a scrambled (hashed) form of the number so later bookings reach it too.
+            We send only messages about your bookings: confirmed, declined or not confirmed in time, cancelled,
+            rescued, refunded, and one asking how your stay was. No marketing. The token is deleted when the phone
+            stops accepting it or after 90 days without use; turning notifications off in your phone&apos;s settings
+            stops them at once.
+          </li>
+          <li>
             <strong>Your payment:</strong> Razorpay handles the card or UPI payment. We receive only a payment
             reference and whether it succeeded or was refunded, never your card or UPI details.
           </li>
@@ -92,6 +102,11 @@ export default function PrivacyPage() {
             <strong>Meta (WhatsApp)</strong> delivers the verification code to your WhatsApp number, the booking
             updates if you asked for them, and our messages to hotel owners, which include the booking details above
             but not your number.
+          </li>
+          <li>
+            <strong>Google (Firebase Cloud Messaging) and Apple</strong> deliver app notifications, if you allowed
+            them: they receive the notification token and the notification&apos;s text (the hotel&apos;s name and what
+            happened), never your name, phone number or booking code.
           </li>
           <li>
             <strong>PostHog</strong> receives the analytics counts described below, from our servers, without your IP
@@ -144,7 +159,11 @@ export default function PrivacyPage() {
         <p>
           The app keeps a few things in your browser so it works quickly and offline: your last search, the hotels you
           saved, the ids of your bookings, and copies of pages you&apos;ve opened (such as your booking pass). Clearing
-          your browser&apos;s site data removes them.
+          your browser&apos;s site data removes them. The iPhone and Android app also saves a copy of each booking pass
+          you open (hotel, address, times, room, name, amounts and desk code) on your phone only, so it opens without a
+          connection; each copy is removed 30 days after the stay, and deleting the app removes them all. The app asks
+          for your location only when you tap &quot;I need a room now&quot;, to find rooms free tonight near you, and
+          sends it with that search like any other search.
         </p>
       </section>
 

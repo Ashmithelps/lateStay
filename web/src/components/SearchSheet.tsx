@@ -9,6 +9,7 @@ import { TOWNS } from "@/lib/towns";
 import { Button } from "./Button";
 import { GuestStepper } from "./GuestStepper";
 import type { SearchSection } from "./SearchPill";
+import { currentPosition } from "@/lib/native/plugins";
 import { cx, focusRing } from "./ui";
 
 type Props = {
@@ -107,18 +108,13 @@ export function SearchSheet({ initial, section, notice, onClose, onSearch }: Pro
   }, [section, onClose]);
 
   function useMyLocation() {
-    if (!("geolocation" in navigator)) {
-      setLocating("denied");
-      return;
-    }
     setLocating("busy");
-    navigator.geolocation.getCurrentPosition(
+    currentPosition().then(
       (pos) => {
         setLocating("idle");
-        setDraft((d) => ({ ...d, place: "here", placeLabel: "Your location", lat: pos.coords.latitude, lng: pos.coords.longitude }));
+        setDraft((d) => ({ ...d, place: "here", placeLabel: "Your location", lat: pos.lat, lng: pos.lng }));
       },
       () => setLocating("denied"),
-      { timeout: 8000, maximumAge: 60_000 },
     );
   }
 

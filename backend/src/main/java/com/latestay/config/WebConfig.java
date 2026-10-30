@@ -43,7 +43,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/negotiations", "/api/negotiations/*/messages", "/api/negotiations/*/accept",
                         "/api/bookings", "/api/phone-verifications", "/api/phone-verifications/*/check",
                         "/api/owner/session", "/api/events", "/api/stay-requests/*/attribution",
-                        "/api/bookings/*/review", "/api/bookings/*/share"));
+                        "/api/bookings/*/review", "/api/bookings/*/share", "/api/devices"));
     }
 
     @Override

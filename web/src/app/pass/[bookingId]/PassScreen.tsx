@@ -16,6 +16,11 @@ import { formatDay, formatDistance, formatInstantTime, formatPrice, formatTime, 
 import { formatIndianMobile } from "@/lib/phone";
 import { useBooking } from "@/lib/queries";
 import { ReviewRow, ShareStay } from "./PassExtras";
+import { NotifyPrompt } from "@/components/native/NotifyPrompt";
+import { useNative } from "@/components/native/useNative";
+import { usePassInApp } from "@/components/native/usePassInApp";
+import { mapsUrl } from "@/lib/native/links";
+import { nativePlatform } from "@/lib/native/platform";
 import { useLastSearchHref } from "@/lib/search-state";
 
 /** The booking pass: waiting for the hotel, the desk code once confirmed, or what happens next if it fell through. */
@@ -26,13 +31,15 @@ export function PassScreen({ initial, supportWhatsApp }: { initial?: BookingView
   const { bookingId } = useParams<{ bookingId: string }>();
   const booking = useBooking(bookingId, initial);
   const backHref = useLastSearchHref();
-  const b = booking.data;
+  // In the app, a copy saved on the phone stands in when there's no connection.
+  const { saved } = usePassInApp(bookingId, booking.data, booking.isError);
+  const b = booking.data ?? saved ?? undefined;
 
   return (
     <>
       <PageHeader backHref={backHref} backLabel="Back to search" maxWidth="max-w-[640px]" />
       <main className="mx-auto max-w-[640px] px-4 pb-16 pt-6 sm:px-6">
-        {booking.isPending ? (
+        {booking.isPending && !b ? (
           <div className="h-64 animate-pulse rounded-card bg-soft" aria-busy="true" />
         ) : !b ? (
           <div className="py-12 text-center">
@@ -44,6 +51,11 @@ export function PassScreen({ initial, supportWhatsApp }: { initial?: BookingView
           </div>
         ) : (
           <div aria-live="polite">
+            {saved && (
+              <p role="status" className="mb-6 text-14 text-ink-secondary">
+                No connection. This is the copy saved on this phone; your code works at the desk.
+              </p>
+            )}
             <OfflineNote className="mb-6">
               You&apos;re offline. This pass was last updated at {formatInstantTime(new Date(booking.dataUpdatedAt).toISOString())}.
               Your code still works at the desk.
@@ -173,6 +185,8 @@ function Waiting({ b }: { b: BookingView }) {
         Usually under 5 minutes. If they haven&apos;t confirmed by {b.confirmBy ? formatInstantTime(b.confirmBy) : "then"},
         your {formatPrice(b.depositAmount)} is refunded automatically.
       </p>
+      {/* In the app, right after paying: offer a notification when the hotel confirms. */}
+      <NotifyPrompt bookingId={b.id} />
       <div className="mt-8 border-t border-hairline pt-6">
         <HotelLine b={b} />
       </div>
@@ -205,7 +219,13 @@ function Waiting({ b }: { b: BookingView }) {
 }
 
 function Confirmed({ b }: { b: BookingView }) {
-  const directions = `https://www.google.com/maps/dir/?api=1&destination=${b.hotel.lat},${b.hotel.lng}`;
+  const native = useNative();
+  const platform = native ? nativePlatform() : "web";
+  // The app opens the system maps app; the website opens Google Maps.
+  const directions =
+    platform === "web"
+      ? `https://www.google.com/maps/dir/?api=1&destination=${b.hotel.lat},${b.hotel.lng}`
+      : mapsUrl(platform, b.hotel.lat, b.hotel.lng, b.hotel.name);
   const tel = `tel:${b.hotel.phone.replace(/[^\d+]/g, "")}`;
   const linkClass = cx(
     "inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-ink bg-canvas px-5",

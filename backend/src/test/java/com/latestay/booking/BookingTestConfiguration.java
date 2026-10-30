@@ -47,6 +47,12 @@ public class BookingTestConfiguration {
     }
 
     @Bean
+    @Primary
+    com.latestay.push.RecordingPushGateway recordingPushGateway() {
+        return new com.latestay.push.RecordingPushGateway();
+    }
+
+    @Bean
     TestBookings testBookings(org.springframework.context.ApplicationContext context) {
         return new TestBookings(context);
     }

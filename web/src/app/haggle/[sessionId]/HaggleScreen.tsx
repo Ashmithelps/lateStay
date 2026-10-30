@@ -13,6 +13,7 @@ import { TypingDots } from "@/components/TypingDots";
 import { priceBand, track } from "@/lib/track";
 import { api, ApiError, type ConversationReply, type NegotiationView, type SessionStatus } from "@/lib/api";
 import { formatPrice, roomOptionLabel } from "@/lib/format";
+import { haptic } from "@/lib/native/plugins";
 import { useNegotiation } from "@/lib/queries";
 import { useLastSearchHref } from "@/lib/search-state";
 
@@ -97,7 +98,11 @@ export function HaggleScreen({ initial }: { initial?: NegotiationView }) {
 
   const accept = useMutation({
     mutationFn: () => api.accept(sessionId),
-    onMutate: () => addTravellerMessage(`Accept ${formatPrice(offer)}`),
+    onMutate: () => {
+      // A light tap in the app (nothing on the website).
+      void haptic("light");
+      addTravellerMessage(`Accept ${formatPrice(offer)}`);
+    },
     onSuccess: applyReply,
     onError: (e) => onError(e, `Accept ${formatPrice(offer)}`),
   });

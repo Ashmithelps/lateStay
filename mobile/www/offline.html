@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>No connection · LateStay</title>
+<script src="app-config.js"></script>
+<style>
+  /* docs/DESIGN.md tokens. Shown by the app when the web app can't be reached (server.errorPath). */
+  @font-face { font-family: "Plus Jakarta Sans"; font-weight: 400; src: url("fonts/plus-jakarta-sans-latin-400-normal.woff") format("woff"); }
+  @font-face { font-family: "Plus Jakarta Sans"; font-weight: 600; src: url("fonts/plus-jakarta-sans-latin-600-normal.woff") format("woff"); }
+  :root { --canvas: #ffffff; --soft: #f7f7f7; --ink: #222222; --ink-2: #6a6a6a; --hairline: #dddddd; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 16px/1.5 "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); -webkit-tap-highlight-color: transparent; }
+  main { max-width: 480px; margin: 0 auto; padding: 24px 0 32px; }
+  .wordmark { font-size: 22px; font-weight: 600; }
+  h1 { font-size: 26px; line-height: 1.25; font-weight: 600; margin: 16px 0 0; }
+  h2 { font-size: 18px; font-weight: 600; margin: 0; }
+  p { margin: 8px 0 0; color: var(--ink-2); }
+  .icon { margin-top: 40px; color: var(--ink-2); }
+  button { margin-top: 24px; width: 100%; min-height: 48px; border: 0; border-radius: 8px; background: var(--ink); color: var(--canvas);
+    font: 600 16px "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  section { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--hairline); }
+  ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  li { padding: 20px 0; border-bottom: 1px solid var(--hairline); }
+  .status { font-size: 14px; font-weight: 500; color: var(--ink-2); margin: 0; }
+  .hotel { font-size: 18px; font-weight: 600; color: var(--ink); margin: 0; }
+  .address { font-size: 14px; margin: 0; }
+  .code-label { text-align: center; font-size: 14px; margin-top: 16px; }
+  .code { text-align: center; font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: 0.2em; padding-left: 0.2em;
+    color: var(--ink); margin-top: 8px; font-variant-numeric: tabular-nums; }
+  dl { margin: 16px 0 0; border-top: 1px solid var(--hairline); }
+  dl div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--hairline); }
+  dt { color: var(--ink-2); } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  dd.strong { font-weight: 600; }
+  dl div:last-child { border-bottom: 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="wordmark">LateStay</div>
+  <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+  <h1>No connection</h1>
+  <p id="lead">Check your signal or Wi-Fi, then try again.</p>
+  <button type="button" id="retry">Retry</button>
+  <section id="saved" hidden>
+    <h2>Saved on this phone</h2>
+    <ul id="passes"></ul>
+  </section>
+</main>
+<script>
+  // The passes the app saved (Preferences, key "latestay.passes"; see web/src/lib/native/saved-passes.ts). iOS gives
+  // this page Capacitor's bridge; Android doesn't, so there it shows "No connection" and Retry only.
+  (function () {
+    var config = window.LATESTAY || { serverUrl: "https://latestay.in" };
+    document.getElementById("retry").addEventListener("click", function () { window.location.href = config.serverUrl; });
+    var cap = window.Capacitor;
+    if (!cap || typeof cap.nativePromise !== "function") return;
+    cap.nativePromise("Preferences", "get", { key: "latestay.passes" }).then(function (r) {
+      var passes = [];
+      try { passes = JSON.parse((r && r.value) || "[]"); } catch (e) { passes = []; }
+      if (!Array.isArray(passes) || passes.length === 0) return;
+      document.getElementById("lead").textContent = "Your saved bookings are below. The code works at the desk without a connection.";
+      var list = document.getElementById("passes");
+      var labels = { DEPOSIT_PAID: "Waiting for the hotel", HOTEL_CONFIRMED: "Confirmed", CHECKED_IN: "Checked in", COMPLETED: "Stay complete" };
+      var money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+      var when = function (local) {
+        var d = new Date(local + "+05:30");
+        return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).toLowerCase() +
+          ", " + d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+      };
+      passes.forEach(function (p) {
+        var li = document.createElement("li");
+        var add = function (tag, cls, text) { var el = document.createElement(tag); el.className = cls; el.textContent = text; li.appendChild(el); return el; };
+        add("p", "status", labels[p.status] || "Booking");
+        add("p", "hotel", p.hotel.name);
+        add("p", "address", p.hotel.address);
+        if (p.code) { add("p", "code-label", "Show this code at the desk"); add("p", "code", p.code); }
+        var dl = document.createElement("dl");
+        [["Arrive by", when(p.arriveBy), ""], ["Pay at desk", money.format(p.payAtDesk), "strong"], ["Hotel phone", p.hotel.phone, ""]].forEach(function (row) {
+          var div = document.createElement("div"); var dt = document.createElement("dt"); var dd = document.createElement("dd");
+          dt.textContent = row[0]; dd.textContent = row[1]; dd.className = row[2]; div.appendChild(dt); div.appendChild(dd); dl.appendChild(div);
+        });
+        li.appendChild(dl);
+        list.appendChild(li);
+      });
+      document.getElementById("saved").hidden = false;
+    }).catch(function () {});
+  })();
+</script>
+</body>
+</html>

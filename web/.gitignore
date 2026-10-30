@@ -46,3 +46,6 @@ next-env.d.ts
 # Playwright
 /test-results/
 /playwright-report/
+
+# "Website unchanged" pixel baselines (playwright.unchanged.config.ts)
+/e2e/.unchanged/

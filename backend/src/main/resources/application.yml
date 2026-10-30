@@ -71,6 +71,9 @@ latestay:
     # 2 = occupancy, weekend and season pricing; 1 = the engine's rules before it
     version: ${PRICING_VERSION:2}
     weekend-percent: ${PRICING_WEEKEND_PERCENT:110}
+  push:
+    # The Firebase service account key (JSON). Empty: notifications are queued and marked NOT_SENT.
+    firebase-service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}
   reliability:
     min-decisions: ${RELIABILITY_MIN_DECISIONS:3}
     min-confirm-rate-percent: ${RELIABILITY_MIN_CONFIRM_RATE:70}

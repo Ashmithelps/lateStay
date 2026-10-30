@@ -47,7 +47,7 @@ class OpenApiSpecIT {
         // Razorpay's webhook is public but not part of the web app's contract.
         assertThat(spec.path("paths").has("/api/webhooks/razorpay")).isFalse();
         assertThat(spec.path("paths").fieldNames()).toIterable()
-                .noneMatch(p -> p.startsWith("/api/admin") || p.startsWith("/api/dev") || p.startsWith("/api/owner"));
+                .noneMatch(p -> p.startsWith("/api/admin") || p.startsWith("/api/dev/") || p.startsWith("/api/owner"));
         // The FLOOR_REACHED reason code names a situation, not a value; anything else mentioning the floor fails.
         assertThat(body.toLowerCase().replace("floor_reached", "")).doesNotContain("floor");
 

@@ -1,0 +1,35 @@
+{
+  "name": "latestay-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LateStay for iOS and Android: a Capacitor shell around the web app (docs/MOBILE.md). The version here is the apps' only version number.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "configure": "node scripts/configure.mjs",
+    "assets": "capacitor-assets generate --ios --android --iconBackgroundColor '#222222' --splashBackgroundColor '#FFFFFF' --iconBackgroundColorDark '#222222' --splashBackgroundColorDark '#FFFFFF'",
+    "sync": "npm run configure && cap sync",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/geolocation": "8.2.4",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/keyboard": "8.0.6",
+    "@capacitor/preferences": "8.0.1",
+    "@capacitor/push-notifications": "8.1.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
+    "capacitor-razorpay": "1.3.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.0",
+    "typescript": "5.9.3"
+  }
+}

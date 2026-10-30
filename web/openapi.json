@@ -310,6 +310,27 @@
         "tags" : [ "booking-controller" ]
       }
     },
+    "/api/devices" : {
+      "post" : {
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeviceBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "device-controller" ]
+      }
+    },
     "/api/events" : {
       "post" : {
         "operationId" : "event",
@@ -1196,6 +1217,25 @@
           "stayRequestId" : {
             "type" : "string",
             "format" : "uuid"
+          }
+        }
+      },
+      "DeviceBody" : {
+        "required" : [ "bookingId", "platform", "token" ],
+        "type" : "object",
+        "properties" : {
+          "bookingId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "nullable" : true
+          },
+          "platform" : {
+            "type" : "string",
+            "enum" : [ "IOS", "ANDROID" ]
+          },
+          "token" : {
+            "pattern" : "[A-Za-z0-9_:\\-.]{20,4096}",
+            "type" : "string"
           }
         }
       },
